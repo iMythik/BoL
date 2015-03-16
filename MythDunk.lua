@@ -3,7 +3,7 @@ if myHero.charName ~= "Darius" then return end
 local mythdunk = {}
 local creep
 
-mythdunk.version = "v1.15"
+mythdunk.version = "v1.16"
 
 -- Spell table
 function mythdunk:loadVars()
