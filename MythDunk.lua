@@ -67,24 +67,36 @@ end
 
 function mythdunk:CastQ(unit)
 	if ValidTarget(unit, spells.q.range) and spells.q.ready then
-		CastSpell(_Q, unit.x, unit.z)
+		if settings.combo.packets then
+			Packet("S_CAST", {spellId = _Q}):send()
+		else
+			CastSpell(_Q, unit.x, unit.z)
+		end
 	end	
 end	
 
 function mythdunk:CastW(unit)
-	if ValidTarget(unit, 200) then
-		CastSpell(_W)
+	if ValidTarget(unit, 200) and spells.w.ready then
+		if settings.combo.packets then
+			Packet("S_CAST", {spellId = _W}):send()
+		else
+			CastSpell(_W)
+		end
 	end	
 end	
 
 function mythdunk:CastE(unit)
-	if ValidTarget(unit, spells.e.range) and spells.e.ready then
-		CastSpell(_E, unit.x, unit.z)
+	if ValidTarget(unit, spells.e.range-8) and spells.e.ready then
+		if settings.combo.packets then
+			Packet("S_CAST", {spellId = _E, targetNetworkId = unit.networkID}):send()
+		else
+			CastSpell(_E, unit.x, unit.z)
+		end
 	end	
 end	
 
 function mythdunk:CastR(unit)
-	local dmg, hp = getDmg("R", unit, myHero) * 1.56, unit.health
+	local dmg, hp = getDmg("R", unit, myHero) * 1.52, unit.health
 
 	if ValidTarget(unit, spells.r.range) and dmg >= unit.health and spells.r.ready then
 		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
@@ -225,6 +237,7 @@ function mythdunk:Menu()
 	settings.combo:addParam("autoq", "Auto Q", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autoe", "Auto E", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
 
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("farmkey", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
