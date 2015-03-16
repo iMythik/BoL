@@ -2,7 +2,7 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.12"
+mythdunk.version = "v1.13"
 
 -- Spell table
 function mythdunk:loadVars()
@@ -79,7 +79,7 @@ function mythdunk:CastQ(unit)
 end	
 
 function mythdunk:CastW(unit)
-	if ValidTarget(unit, spells.w.range) then
+	if ValidTarget(unit, 200) then
 		CastSpell(_W)
 	end	
 end	
