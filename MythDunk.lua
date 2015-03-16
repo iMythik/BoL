@@ -2,7 +2,7 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.1"
+mythdunk.version = "v1.0"
 
 -- Spell table
 function mythdunk:loadVars()
@@ -73,7 +73,7 @@ function mythdunk:readyCheck()
 end
 
 function mythdunk:CastQ(unit)
-	if ValidTarget(unit, spells.q.range) and spells.q.ready then
+	if GetDistance(unit) <= spells.q.range and spells.q.ready then
 		CastSpell(_Q, ts.target.x, ts.target.z)
 	end	
 end	
@@ -85,13 +85,13 @@ function mythdunk:CastW(unit)
 end	
 
 function mythdunk:CastE(unit)
-	if ValidTarget(unit, spells.r.range-30) and ValidTarget(unit, 200) and spells.e.ready then
+	if ValidTarget(unit, spells.e.range) and spells.e.ready then
 		CastSpell(_E, ts.target.x, ts.target.z)
 	end	
 end	
 
 function mythdunk:CastR(unit)
-	local dmg, hp = getDmg("R", unit, myHero) * 1.60, unit.health
+	local dmg, hp = getDmg("R", unit, myHero) * 1.56, unit.health
 
 	if ValidTarget(unit, spells.r.range) and dmg >= unit.health and spells.r.ready then
 		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
