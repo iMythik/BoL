@@ -2,7 +2,7 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.0"
+mythdunk.version = "v1.1"
 
 -- Spell table
 function mythdunk:loadVars()
@@ -85,7 +85,7 @@ function mythdunk:CastW(unit)
 end	
 
 function mythdunk:CastE(unit)
-	if GetDistance(unit) <= (spells.e.range-30) and GetDistance(unit) >= 200 and spells.e.ready then
+	if ValidTarget(unit, spells.r.range-30) and ValidTarget(unit, 200) and spells.e.ready then
 		CastSpell(_E, ts.target.x, ts.target.z)
 	end	
 end	
@@ -93,13 +93,13 @@ end
 function mythdunk:CastR(unit)
 	local dmg, hp = getDmg("R", unit, myHero) * 1.60, unit.health
 
-	if GetDistance(unit) <= (spells.r.range) and dmg >= unit.health and spells.r.ready then
+	if ValidTarget(unit, spells.r.range) and dmg >= unit.health and spells.r.ready then
 		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
 	end	
 end	
 
 function mythdunk:subUlt(unit)
-	if GetDistance(unit) <= (spells.r.range) and spells.r.ready then
+	if ValidTarget(unit, spells.r.range) and spells.r.ready then
 		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
 	end	
 end	
@@ -135,19 +135,21 @@ function OnTick()
 
 	local hp = myHero.health / myHero.maxHealth * 100
 
-	if settings.combo.comboKey and ts.target ~= nil and not ts.target.dead then
+	if not ValidTarget(ts.target) then return end
+
+	if settings.combo.comboKey then
 		mythdunk:shoot(ts.target)
 	end
 
-	if settings.ks.r and ts.target ~= nil and not ts.target.dead then
+	if settings.ks.r then
 		mythdunk:CastR(ts.target)
 	end
 
-	if settings.ks.q and ts.target ~= nil and not ts.target.dead and getDmg("R", ts.target, myHero) >= ts.target.health then
+	if settings.ks.q and getDmg("R", ts.target, myHero) >= ts.target.health then
 		mythdunk:CastQ(ts.target)
 	end
 
-	if settings.combo.ultHP and hp <= settings.combo.ultpct and ts.target ~= nil and not ts.target.dead and settings.combo.ultpct ~= 0 then
+	if settings.combo.ultHP and hp <= settings.combo.ultpct and settings.combo.ultpct ~= 0 then
 		mythdunk:subUlt(ts.target)
 	end
 
