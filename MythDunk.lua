@@ -73,7 +73,7 @@ function mythdunk:readyCheck()
 end
 
 function mythdunk:CastQ(unit)
-	if GetDistance(unit) <= spells.q.range and spells.q.ready then
+	if ValidTarget(unit, spells.q.range) and spells.q.ready then
 		CastSpell(_Q, ts.target.x, ts.target.z)
 	end	
 end	
