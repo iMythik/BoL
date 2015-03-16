@@ -2,7 +2,7 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.0"
+mythdunk.version = "v1.12"
 
 -- Spell table
 function mythdunk:loadVars()
@@ -73,13 +73,13 @@ function mythdunk:readyCheck()
 end
 
 function mythdunk:CastQ(unit)
-	if GetDistance(unit) <= spells.q.range and spells.q.ready then
+	if ValidTarget(unit, spells.q.range) and spells.q.ready then
 		CastSpell(_Q, ts.target.x, ts.target.z)
 	end	
 end	
 
 function mythdunk:CastW(unit)
-	if GetDistance(unit) <= 200 then
+	if ValidTarget(unit, spells.w.range) then
 		CastSpell(_W)
 	end	
 end	
@@ -194,7 +194,7 @@ function mythdunk:Menu()
 
 	settings:addSubMenu("Ultimate", "ult")
 	settings.ult:addParam("autoR", "Use ult in combo", SCRIPT_PARAM_ONOFF, true)
-	settings.ult:addParam("ultHP", "Ult on Low HP", SCRIPT_PARAM_ONOFF, true)
+	settings.ult:addParam("ultHP", "Ult on Low HP (You)", SCRIPT_PARAM_ONOFF, true)
 	settings.ult:addParam("ultpct", "Use ult below health %", SCRIPT_PARAM_SLICE, 25, 0, 35, 0)
 
 	settings:addSubMenu("Kill Steal", "ks")
