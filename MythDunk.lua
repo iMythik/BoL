@@ -232,8 +232,11 @@ function OnTick()
 		mythdunk:CastQ(targ)
 	end
 
-	if settings.combo.ultHP and hp <= settings.combo.ultpct and settings.combo.ultpct ~= 0 then
+	print(settings.ult.ultpct)
+
+	if settings.ult.ultHP and hp <= settings.ult.ultpct and settings.ult.ultpct ~= 0 then
 		mythdunk:subUlt(targ)
+		print("ulting for low hp")
 	end
 
 end
