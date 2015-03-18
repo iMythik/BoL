@@ -2,7 +2,7 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.18"
+mythdunk.version = "v1.19"
 
 local creep
 local spells = {}
@@ -186,7 +186,7 @@ function OnLoad()
 
 	mythdunk:Menu()
 
-	DelayAction(orbwalkCheck,5)
+	DelayAction(orbwalkCheck,7)
 end
 
 -- Tick hook
@@ -213,7 +213,7 @@ function OnTick()
 		mythdunk:CastR(targ)
 	end
 
-	if settings.ks.q and getDmg(_Q, targ) >= targ.health then
+	if settings.ks.q and getDmg("Q", targ, myHero) >= targ.health then
 		mythdunk:CastQ(targ)
 	end
 
