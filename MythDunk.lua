@@ -2,10 +2,9 @@ if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-mythdunk.version = "v1.17"
+mythdunk.version = "v1.18"
 
 local creep
-local niggas = {}
 local spells = {}
 spells.q = {name = myHero:GetSpellData(_Q).name, ready = false, range = 420, width = 410}
 spells.w = {name = myHero:GetSpellData(_E).name, ready = false, range = 145, width = 145}
@@ -141,28 +140,14 @@ function mythdunk:getTarg()
 	return ts.target
 end
 
--- Add enemies to table
-for i=0, heroManager.iCount, 1 do
-    local ply = heroManager:GetHero(i)
-
-    if ply and ply.team ~= player.team then
-        ply.stack = 0
-        table.insert(niggas,ply)
-    end
-end
-
 -- Hemmorage stack calculation
 function OnCreateObj(object)
-
 	if GetDistance(myHero, object) >= 300 then return end
-
 	for k, v in pairs(stacktbl) do
 		if object.name == v then
-			for i, e in pairs(niggas) do
+			for i, e in pairs(GetEnemyHeroes()) do
 				if mythdunk:getTarg() == e then
-
 	           	 	e.stack = k
-
 	           	end
 	        end
 	    end
@@ -171,11 +156,11 @@ end
 
 -- R damage calculation
 function getRdmg(unit)
-	for i, e in pairs(niggas) do
+	for i, e in pairs(GetEnemyHeroes()) do
 		if e == unit then
+			if e.stack == nil then e.stack = 0 end
 			local dmg = getDmg("R", unit, myHero)
 	        local totaldmg = dmg + e.stack * dmg * 20 / 100
-
 	        return totaldmg
 		end
 	end
@@ -232,11 +217,8 @@ function OnTick()
 		mythdunk:CastQ(targ)
 	end
 
-	print(settings.ult.ultpct)
-
 	if settings.ult.ultHP and hp <= settings.ult.ultpct and settings.ult.ultpct ~= 0 then
 		mythdunk:subUlt(targ)
-		print("ulting for low hp")
 	end
 
 end
