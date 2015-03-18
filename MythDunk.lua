@@ -109,6 +109,16 @@ function mythdunk:shoot(unit)
 	end
 end
 
+function mythdunk:Harass(unit)
+	if settings.harass.q and ValidTarget(unit, spells.q.range) then
+		mythdunk:CastQ(unit)
+	end
+
+	if settings.harass.w and ValidTarget(unit, 200) then
+		mythdunk:CastW(unit)
+	end
+end
+
 -- Minion farm
 function mythdunk:Farm()
 	creep:update()
@@ -205,6 +215,10 @@ function OnTick()
 
 	local targ = mythdunk:getTarg()
 
+	if settings.harass.harassKey then
+		mythdunk:Harass(targ)
+	end
+
 	if settings.combo.comboKey then
 		mythdunk:shoot(targ)
 	end
@@ -263,6 +277,11 @@ function mythdunk:Menu()
 	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autoe", "Auto E", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
+
+	settings:addSubMenu("Harass", "harass")
+	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
+	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, true)
+	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, true)
 
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("farmkey", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
