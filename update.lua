@@ -1,4 +1,4 @@
-local dunkversion = "v1.18"
+local dunkversion = "1.18"
 
 if myHero.charName ~= "Darius" then return end
 
