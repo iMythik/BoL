@@ -1,10 +1,40 @@
+local version = "1.20"
+
 if myHero.charName ~= "Darius" then return end
 
+----------------------
+--   Auto Updater   --
+----------------------
+
 local mythdunk = {}
+local autoupdate = true
+local UPDATE_NAME = "MythDunk"
+local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
+local UPDATE_URL = "http://raw.github.com/iMythik/BoL/master/MythDunk.lua"
 
-mythdunk.version = "v1.19"
+function printChat(msg) print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> "..msg.."</font>") end
 
-local creep
+function update()
+    local netdata = GetWebResult("raw.github.com", "/iMythik/BoL/master/MythDunk.lua")
+    if netdata then
+        local netver = string.match(netdata, "local version = \"%d+.%d+\"")
+        netver = string.match(netver and netver or "", "%d+.%d+")
+        if netver then
+            netver = tonumber(netver)
+            if tonumber(version) < netver then
+                printChat("New version found, updating... don't press F9.")
+                DownloadFile(UPDATE_URL, UPDATE_FILE_PATH, function () printChat("Updated script ["..version.." to "..netver.."], press F9 twice to reload the script.") end)    
+            else
+                printChat("is running latest version!")
+            end
+        end
+    end
+end
+
+----------------------
+--     Variables    --
+----------------------
+
 local spells = {}
 spells.q = {name = myHero:GetSpellData(_Q).name, ready = false, range = 420, width = 410}
 spells.w = {name = myHero:GetSpellData(_E).name, ready = false, range = 145, width = 145}
@@ -27,10 +57,10 @@ end
 -- Orbwalker check
 function orbwalkCheck()
 	if _G.AutoCarry then
-		print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> SA:C detected, support enabled.</font>")
+		printChat("SA:C detected, support enabled.")
 		SACLoaded = true
 	else
-		print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> SA:C not running, loading SxOrbWalk.</font>")
+		printChat("SA:C not running, loading SxOrbWalk.")
 		require("SxOrbWalk")
 		SxOrb:LoadToMenu(Menu)
 		SACLoaded = false
@@ -189,7 +219,11 @@ end
 
 -- Init hook
 function OnLoad()
-	print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>["..mythdunk.version.."]</font>")
+	print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>[v"..version.."]</font>")
+
+	if autoupdate then
+		update()
+	end
 
 	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
 	creep = minionManager(MINION_ENEMY, 200, myHero, MINION_SORT_HEALTH_ASC)
