@@ -1,34 +1,36 @@
-local dunkversion = "1.18"
+local version = "1.19"
 
 if myHero.charName ~= "Darius" then return end
 
 local mythdunk = {}
 
-local UPDATE_HOST = "raw.githubusercontent.com"
-local UPDATE_PATH = "/iMythik/BoL/master/MythDunk.lua"
-local UPDATE_FILE_PATH = SCRIPT_PATH..GetCurrentEnv().FILE_NAME
+mythdunk.version = "v1.19"
+
+local UPDATE_NAME = "MythDunk"
+local UPDATE_HOST = "raw.github.com"
+local UPDATE_PATH = "/iMythik/BoL/master/MythDunk.lua" .. "?rand=" .. math.random(1, 10000)
+local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
 local UPDATE_URL = "http://"..UPDATE_HOST..UPDATE_PATH
 
-function AutoupdaterMsg(msg) print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> "..msg.."</font>") end
-
-local ServerData = GetWebResult(UPDATE_HOST, UPDATE_PATH)
-if ServerData then
-	print("yay")
-	local ServerVersion = string.match(ServerData, "dunkversion = \"%d+.%d+\"")
-	ServerVersion = string.match(ServerVersion and ServerVersion or "", "%d+.%d+")
-	print(ServerVersion)
-	if ServerVersion then
-		ServerVersion = tonumber(ServerVersion)
-		if tonumber(dunkversion) < ServerVersion then
-			AutoupdaterMsg("New version available "..ServerVersion)
-			AutoupdaterMsg("Updating, please don't press F9")
-			DownloadFile(UPDATE_URL, UPDATE_FILE_PATH, function () AutoupdaterMsg("Successfully updated. ("..dunkversion.." => "..ServerVersion.."), press F9 twice to load the updated version.") end)	 
-		else
-			AutoupdaterMsg("You have got the latest version ("..ServerVersion..")")
-		end
-	end
-else
-	AutoupdaterMsg("Error downloading version info")
+function AutoupdaterMsg(msg) print("<b><font color=\"#6699FF\">"..UPDATE_NAME..":</font></b> <font color=\"#FFFFFF\">"..msg..".</font>") end
+if _G.UseUpdater then
+    local ServerData = GetWebResult(UPDATE_HOST, UPDATE_PATH)
+    if ServerData then
+        local ServerVersion = string.match(ServerData, "local version = \"%d+.%d+\"")
+        ServerVersion = string.match(ServerVersion and ServerVersion or "", "%d+.%d+")
+        if ServerVersion then
+            ServerVersion = tonumber(ServerVersion)
+            if tonumber(version) < ServerVersion then
+                AutoupdaterMsg("New version available"..ServerVersion)
+                AutoupdaterMsg("Updating, please don't press F9")
+                DownloadFile(UPDATE_URL, UPDATE_FILE_PATH, function () AutoupdaterMsg("Successfully updated. ("..version.." => "..ServerVersion.."), press F9 twice to load the updated version.") end)    
+            else
+                AutoupdaterMsg("You have got the latest version ("..ServerVersion..")")
+            end
+        end
+    else
+        AutoupdaterMsg("Error downloading version info")
+    end
 end
 
 
@@ -217,7 +219,7 @@ end
 
 -- Init hook
 function OnLoad()
-	print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>["..dunkversion.."]</font>")
+	print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>["..mythdunk.version.."]</font>")
 
 	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
 	creep = minionManager(MINION_ENEMY, 200, myHero, MINION_SORT_HEALTH_ASC)
