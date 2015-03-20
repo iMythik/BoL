@@ -1,4 +1,4 @@
-local version = "1.20"
+local version = "1.21"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -79,7 +79,16 @@ function mythdunk:CastQ(unit)
 		else
 			CastSpell(_Q, unit.x, unit.z)
 		end
-	end	
+	end
+	if settings.combo.qmax then
+		if ValidTarget(unit,425) and myHero:GetDistance(unit) > 290 then
+			if settings.combo.packets then
+				Packet("S_CAST", {spellId = _Q}):send()
+			else
+				CastSpell(_Q, unit.x, unit.z)
+			end
+		end
+	end
 end	
 
 -- Cast W
@@ -278,6 +287,9 @@ function OnDraw()
 
 	if settings.draw.q and spells.q.ready then
 		mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, spells.q.range, ARGB(255,0,255,0))
+		if settings.combo.qmax then
+			mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, 290, ARGB(255,0,255,0))
+		end
 	end
 
 	if settings.draw.w and spells.w.ready then
@@ -310,6 +322,7 @@ function mythdunk:Menu()
 	settings.combo:addParam("autoq", "Auto Q", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autoe", "Auto E", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("qmax", "Only Q in max range", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
 
 	settings:addSubMenu("Harass", "harass")
