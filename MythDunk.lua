@@ -1,4 +1,4 @@
-local version = "1.21"
+local version = "1.22"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -280,6 +280,80 @@ function OnTick()
 
 end
 
+-- thank you bilbao <3
+
+function GetHPBarPos(enemy)
+	enemy.barData = {PercentageOffset = {x = -0.05, y = 0}}
+	local barPos = GetUnitHPBarPos(enemy)
+	local barPosOffset = GetUnitHPBarOffset(enemy)
+	local barOffset = { x = enemy.barData.PercentageOffset.x, y = enemy.barData.PercentageOffset.y }
+	local barPosPercentageOffset = { x = enemy.barData.PercentageOffset.x, y = enemy.barData.PercentageOffset.y }
+	local BarPosOffsetX = -50
+	local BarPosOffsetY = 46
+	local CorrectionY = 39
+	local StartHpPos = 31
+
+	barPos.x = math.floor(barPos.x + (barPosOffset.x - 0.5 + barPosPercentageOffset.x) * BarPosOffsetX + StartHpPos)
+	barPos.y = math.floor(barPos.y + (barPosOffset.y - 0.5 + barPosPercentageOffset.y) * BarPosOffsetY + CorrectionY)
+
+	local StartPos = Vector(barPos.x , barPos.y, 0)
+	local EndPos = Vector(barPos.x + 108 , barPos.y , 0)
+	
+return Vector(StartPos.x, StartPos.y, 0), Vector(EndPos.x, EndPos.y, 0)
+end
+
+function DrawLineHPBar(damage, line, text, unit, enemyteam)
+	if unit.dead or not unit.visible then return end
+	local p = WorldToScreen(D3DXVECTOR3(unit.x, unit.y, unit.z))
+	if not OnScreen(p.x, p.y) then return end
+
+	
+	local thedmg = 0
+	local linePosA = {x = 0, y = 0 }
+	local linePosB = {x = 0, y = 0 }
+	local TextPos =  {x = 0, y = 0 }
+	
+	
+	if damage >= unit.maxHealth then
+		thedmg = unit.maxHealth - 1
+	else
+		thedmg = damage
+	end
+	
+	
+	local StartPos, EndPos = GetHPBarPos(unit)
+	local Real_X = StartPos.x + 24
+	local Offs_X = (Real_X + ((unit.health - thedmg) / unit.maxHealth) * (EndPos.x - StartPos.x - 2))
+	if Offs_X < Real_X then Offs_X = Real_X end	
+
+	local r, r2 = 255, 255
+	local g, g2 = 0, 255
+	local b = 255
+
+	if thedmg >= unit.health then g = 255 r = 0 g2 = 255 r2 = 0 b = 0 text = text.." (Killable!)" end
+
+	if enemyteam then
+		linePosA.x = Offs_X-150
+		linePosA.y = (StartPos.y-(30+(line*15)))	
+		linePosB.x = Offs_X-150
+		linePosB.y = (StartPos.y-10)
+		TextPos.x = Offs_X-148
+		TextPos.y = (StartPos.y-(30+(line*15)))
+	else
+		linePosA.x = Offs_X-125
+		linePosA.y = (StartPos.y-(30+(line*15)))	
+		linePosB.x = Offs_X-125
+		linePosB.y = (StartPos.y-15)
+	
+		TextPos.x = Offs_X-122
+		TextPos.y = (StartPos.y-(30+(line*15)))
+	end
+
+	DrawLine(linePosA.x, linePosA.y, linePosB.x, linePosB.y , 2, ARGB(255, r, g, 0))
+	DrawText(tostring(text),15,TextPos.x, TextPos.y - 10, ARGB(255, r2, g2, b))
+	
+end
+
 -- Drawing hook
 function OnDraw()
 
@@ -309,6 +383,10 @@ function OnDraw()
 		mythdunk:DrawCircle(targ.x, targ.y, targ.z, 100, ARGB(255,255,120,0))
 	end
 
+	if ValidTarget(mythdunk:getTarg()) and spells.r.ready and settings.draw.rdmg then
+		local targ = mythdunk:getTarg()
+		DrawLineHPBar(getRdmg(targ), 1, " R Damage: "..math.round(getRdmg(targ)), targ, true)
+	end
 end
 
 -- Menu creation
@@ -349,6 +427,7 @@ function mythdunk:Menu()
 	settings.draw:addParam("w", "Draw W", SCRIPT_PARAM_ONOFF, false)
 	settings.draw:addParam("e", "Draw E", SCRIPT_PARAM_ONOFF, true)
 	settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, true)
+	settings.draw:addParam("rdmg", "Draw R Damage", SCRIPT_PARAM_ONOFF, true)
 	settings.draw:addParam("target", "Draw Target", SCRIPT_PARAM_ONOFF, true)
 end
 
