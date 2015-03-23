@@ -256,14 +256,11 @@ function OnTick()
 
 	if settings.ks.r or settings.ks.q then
 		for k, v in pairs(GetEnemyHeroes()) do
-			if settings.ks.r then
-				if ValidTarget(v, spells.r.range) then
-					mythdunk:CastR(v)
-				end
-			elseif settings.ks.q then
-				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
-					mythdunk:CastQ(v)
-				end
+			if settings.ks.r and ValidTarget(v, spells.r.range) then
+				mythdunk:CastR(v)
+			end
+			if settings.ks.q and ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
+				mythdunk:CastQ(v)
 			end
 		end
 	end
