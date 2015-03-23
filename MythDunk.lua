@@ -1,4 +1,4 @@
-local version = "1.22"
+local version = "1.23"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -254,6 +254,20 @@ function OnTick()
 		mythdunk:Farm()
 	end
 
+	if settings.ks.r or settings.ks.q then
+		for k, v in pairs(GetEnemyHeroes()) do
+			if settings.ks.r then
+				if ValidTarget(v, spells.r.range) then
+					mythdunk:CastR(v)
+				end
+			elseif settings.ks.q then
+				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
+					mythdunk:CastQ(v)
+				end
+			end
+		end
+	end
+
 	if not ValidTarget(mythdunk:getTarg()) then return end
 
 	local targ = mythdunk:getTarg()
@@ -264,14 +278,6 @@ function OnTick()
 
 	if settings.combo.comboKey then
 		mythdunk:shoot(targ)
-	end
-
-	if settings.ks.r then
-		mythdunk:CastR(targ)
-	end
-
-	if settings.ks.q and getDmg("Q", targ, myHero) >= targ.health then
-		mythdunk:CastQ(targ)
 	end
 
 	if settings.ult.ultHP and hp <= settings.ult.ultpct and settings.ult.ultpct ~= 0 then
