@@ -150,7 +150,23 @@ end
 
 function mythdunk:Harass(unit)
 	if settings.harass.q and ValidTarget(unit, spells.q.range) then
-		mythdunk:CastQ(unit)
+	    if settings.harass.qHarassMax then
+		    if ValidTarget(unit,425) and myHero:GetDistance(unit) > 290 then
+			    if settings.combo.packets then
+			    	Packet("S_CAST", {spellId = _Q}):send()
+			    else
+			    	CastSpell(_Q, unit.x, unit.z)
+			    end
+		    end	
+		else 
+		    if ValidTarget(unit, spells.q.range) and spells.q.ready then
+		        if settings.combo.packets then
+			        Packet("S_CAST", {spellId = _Q}):send()
+		        else
+			        CastSpell(_Q, unit.x, unit.z)
+		        end
+	        end	
+		end
 	end
 
 	if settings.harass.w and ValidTarget(unit, 200) then
@@ -269,7 +285,7 @@ function OnTick()
 
 	local targ = mythdunk:getTarg()
 
-	if settings.harass.harassKey then
+	if settings.harass.harassKey or settings.harass.harassToogleKey then
 		mythdunk:Harass(targ)
 	end
 
@@ -408,8 +424,10 @@ function mythdunk:Menu()
 
 	settings:addSubMenu("Harass", "harass")
 	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
+	settings.harass:addParam("harassToggleKey", "Harass Toggle Key", SCRIPT_PARAM_ONKEYTOGGLE, false, 67)
 	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, true)
 	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, true)
+	settings.harass:addParam("qHarassMax", "Harass with max Q range", SCRIPT_PARAM_ONOFF, true)
 
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("farmkey", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
