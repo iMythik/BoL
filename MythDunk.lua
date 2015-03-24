@@ -1,4 +1,4 @@
-local version = "1.23"
+local version = "1.24"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -58,10 +58,12 @@ end
 function orbwalkCheck()
 	if _G.AutoCarry then
 		printChat("SA:C detected, support enabled.")
+		AutoCarry.Plugins:RegisterOnAttacked(ResetW)
 		SACLoaded = true
 	else
 		printChat("SA:C not running, loading SxOrbWalk.")
 		require("SxOrbWalk")
+		SxOrb:RegisterAfterAttackCallback(ResetW)
 		SxOrb:LoadToMenu(Menu)
 		SACLoaded = false
 	end
@@ -92,8 +94,8 @@ function mythdunk:CastQ(unit)
 end	
 
 -- Cast W
-function mythdunk:CastW(unit)
-	if ValidTarget(unit, 200) and spells.w.ready then
+function CastW()
+	if spells.w.ready then
 		if settings.combo.packets then
 			Packet("S_CAST", {spellId = _W}):send()
 		else
@@ -101,6 +103,21 @@ function mythdunk:CastW(unit)
 		end
 	end	
 end	
+
+--W Reset
+function ResetW()
+	if SACLoaded then
+		local e = AutoCarry.Orbwalker.LastEnemyAttacked
+
+		if e and settings.combo.comboKey and settings.combo.autow then
+			CastW()
+		end
+	else
+		if settings.combo.comboKey and settings.combo.autow then
+			CastW()
+		end
+	end
+end
 
 -- Cast E
 function mythdunk:CastE(unit)
@@ -143,12 +160,16 @@ function mythdunk:shoot(unit)
 	if settings.combo.autoq then
 		mythdunk:CastQ(unit)
 	end
-	if settings.combo.autow then
-		mythdunk:CastW(unit)
-	end
 end
 
 function mythdunk:Harass(unit)
+
+	if settings.harass.autoq and ValidTarget(unit,425) and myHero:GetDistance(unit) > 290 then
+		mythdunk:CastQ(unit)
+	end
+
+	if not settings.harass.harassKey then return end
+
 	if settings.harass.q and ValidTarget(unit, spells.q.range) then
 		mythdunk:CastQ(unit)
 	end
@@ -166,7 +187,7 @@ function mythdunk:Farm()
 
 		if not settings.farm.farmkey then return end
 
-		if settings.farm.farmq then
+		if settings.farm.farmq and getDmg("Q", minion, myHero) >= minion.health then
 			mythdunk:CastQ(minion)
 		end
 
@@ -256,11 +277,14 @@ function OnTick()
 
 	if settings.ks.r or settings.ks.q then
 		for k, v in pairs(GetEnemyHeroes()) do
-			if settings.ks.r and ValidTarget(v, spells.r.range) then
-				mythdunk:CastR(v)
-			end
-			if settings.ks.q and ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
-				mythdunk:CastQ(v)
+			if settings.ks.r then
+				if ValidTarget(v, spells.r.range) then
+					mythdunk:CastR(v)
+				end
+			elseif settings.ks.q then
+				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
+					mythdunk:CastQ(v)
+				end
 			end
 		end
 	end
@@ -269,7 +293,7 @@ function OnTick()
 
 	local targ = mythdunk:getTarg()
 
-	if settings.harass.harassKey then
+	if settings.harass.harassKey or settings.harass.autoq then
 		mythdunk:Harass(targ)
 	end
 
@@ -408,6 +432,7 @@ function mythdunk:Menu()
 
 	settings:addSubMenu("Harass", "harass")
 	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
+	settings.harass:addParam("autoq", "Auto Q at max range", SCRIPT_PARAM_ONKEYTOGGLE, true, string.byte("T"))
 	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, true)
 	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, true)
 
