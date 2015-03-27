@@ -1,4 +1,4 @@
-local version = "1.24"
+local version = "1.25"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -201,12 +201,40 @@ end
 --   Calculations   --
 ----------------------
 
+-- Target Selection
+function OnWndMsg(Msg, Key)
+	if Msg == WM_LBUTTONDOWN and settings.combo.focus then
+		local dist = 0
+		local Selecttarget = nil
+		for i, enemy in ipairs(GetEnemyHeroes()) do
+			if ValidTarget(enemy) then
+				if GetDistance(enemy, mousePos) <= dist or Selecttarget == nil then
+					dist = GetDistance(enemy, mousePos)
+					Selecttarget = enemy
+				end
+			end
+		end
+		if Selecttarget and dist < 300 then
+			if SelectedTarget and Selecttarget.charName == SelectedTarget.charName then
+				SelectedTarget = nil
+				if settings.combo.focus then 
+					printChat("Target unselected: "..Selecttarget.charName) 
+				end
+			else
+				SelectedTarget = Selecttarget
+				if settings.combo.focus then
+					printChat("New target selected: "..Selecttarget.charName) 
+				end
+			end
+		end
+	end
+end
+
 -- Target Calculation
 function mythdunk:getTarg()
 	ts:update()
-	if SACLoaded and _G.AutoCarry and _G.AutoCarry.Crosshair and _G.AutoCarry.Attack_Crosshair and _G.AutoCarry.Attack_Crosshair.target and _G.AutoCarry.Attack_Crosshair.target.type == myHero.type then
-		return _G.AutoCarry.Attack_Crosshair.target
-	end
+	if _G.AutoCarry and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then _G.AutoCarry.Crosshair:SetSkillCrosshairRange(1200) return _G.AutoCarry.Crosshair:GetTarget() end		
+	if ValidTarget(SelectedTarget) then return SelectedTarget end
 	return ts.target
 end
 
@@ -427,6 +455,7 @@ function mythdunk:Menu()
 	settings.combo:addParam("autoq", "Auto Q", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("autoe", "Auto E", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("focus", "Focus selected target", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("qmax", "Only Q in max range", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
 
