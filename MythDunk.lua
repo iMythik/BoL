@@ -1,4 +1,4 @@
-local version = "1.25"
+local version = "1.26"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -109,11 +109,11 @@ function ResetW()
 	if SACLoaded then
 		local e = AutoCarry.Orbwalker.LastEnemyAttacked
 
-		if e and settings.combo.comboKey and settings.combo.autow then
+		if e and (settings.combo.comboKey and settings.combo.autow) or settings.harass.harassKey and settings.harass.w then
 			CastW()
 		end
 	else
-		if settings.combo.comboKey and settings.combo.autow then
+		if (settings.combo.comboKey and settings.combo.autow) or (settings.harass.harassKey and settings.harass.w) then
 			CastW()
 		end
 	end
@@ -172,10 +172,6 @@ function mythdunk:Harass(unit)
 
 	if settings.harass.q and ValidTarget(unit, spells.q.range) then
 		mythdunk:CastQ(unit)
-	end
-
-	if settings.harass.w and ValidTarget(unit, 200) then
-		mythdunk:CastW(unit)
 	end
 end
 
