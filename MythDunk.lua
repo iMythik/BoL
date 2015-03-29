@@ -1,4 +1,4 @@
-local version = "1.26"
+local version = "1.27"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -122,6 +122,7 @@ end
 -- Cast E
 function mythdunk:CastE(unit)
 	if ValidTarget(unit, spells.e.range-8) and spells.e.ready then
+		if ValidTarget(unit, settings.combo.donte) then return end
 		if settings.combo.packets then
 			Packet("S_CAST", {spellId = _E, targetNetworkId = unit.networkID}):send()
 		else
@@ -236,7 +237,7 @@ end
 
 -- Hemmorage stack calculation
 function OnCreateObj(object)
-	if GetDistance(myHero, object) >= 300 then return end
+	if GetDistance(myHero, object) >= 500 then return end
 	for k, v in pairs(stacktbl) do
 		if object.name == v then
 			for i, e in pairs(GetEnemyHeroes()) do
@@ -255,6 +256,8 @@ function getRdmg(unit)
 			if e.stack == nil then e.stack = 0 end
 			local dmg = getDmg("R", unit, myHero)
 	        local totaldmg = dmg + e.stack * dmg * 20 / 100
+
+	        --print(totaldmg)
 	        return totaldmg
 		end
 	end
@@ -434,7 +437,7 @@ function OnDraw()
 		mythdunk:DrawCircle(targ.x, targ.y, targ.z, 100, ARGB(255,255,120,0))
 	end
 
-	if ValidTarget(mythdunk:getTarg()) and spells.r.ready and settings.draw.rdmg then
+	if ValidTarget(mythdunk:getTarg()) and settings.draw.rdmg then
 		local targ = mythdunk:getTarg()
 		DrawLineHPBar(getRdmg(targ), 1, " R Damage: "..math.round(getRdmg(targ)), targ, true)
 	end
@@ -454,6 +457,7 @@ function mythdunk:Menu()
 	settings.combo:addParam("focus", "Focus selected target", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("qmax", "Only Q in max range", SCRIPT_PARAM_ONOFF, true)
 	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("donte", "Only pull if range >", SCRIPT_PARAM_SLICE, 200, 0, 300, 0)
 
 	settings:addSubMenu("Harass", "harass")
 	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
