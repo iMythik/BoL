@@ -1,4 +1,4 @@
-local version = "1.27"
+local version = "1.28"
 
 if myHero.charName ~= "Darius" then return end
 
@@ -133,15 +133,23 @@ end
 
 -- Cast ult
 function mythdunk:CastR(unit)
-	if ValidTarget(unit, spells.r.range) and getRdmg(unit) >= unit.health and spells.r.ready and ultcalc(unit) then
-		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
+	if ValidTarget(unit, spells.r.range) and getRdmg(unit) >= unit.health and spells.r.ready then
+		if settings.combo.packets then
+			Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
+		else
+			CastSpell(_R, unit)
+		end
 	end	
 end	
 
 -- Cast ult without finisher check
 function mythdunk:subUlt(unit)
 	if ValidTarget(unit, spells.r.range) and spells.r.ready then
-		Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
+		if settings.combo.packets then
+			Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
+		else
+			CastSpell(_R, unit)
+		end
 	end	
 end	
 
@@ -189,7 +197,7 @@ function mythdunk:Farm()
 		end
 
 		if settings.farm.farmw then
-			mythdunk:CastW(minion)
+			CastW()
 		end
 	end
 end
