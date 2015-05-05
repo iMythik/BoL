@@ -1,4 +1,4 @@
-local version = "1.1"
+local version = "1.2"
 
 ----------------------
 --   Auto Updater   --
@@ -31,6 +31,7 @@ end
 
 require("VPrediction") --vpred
 require("DivinePred") -- divinepred
+require("HPrediction") -- hpred
 
 local processTime  = os.clock()*1000
 local enemyChamps = {}
@@ -70,12 +71,12 @@ end
 --  Cast functions  --
 ----------------------
 
-local qpred = CircleSS(math.huge, 950, 150, 1.2, math.huge)
+local qpred = CircleSS(math.huge, 950, 150, .625, math.huge)
 local wpred = LineSS(math.huge, 660, 210, .25, math.huge)
 
 function mythcho:CastQ(unit)
 	if settings.pred == 1 then
-    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, 1.2, 175, 950, math.huge, myHero, false)
+    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, .625, 175, 950, math.huge, myHero, false)
     	if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
     	    CastSpell(_Q, castPos.x, castPos.z)
     	end
@@ -85,6 +86,11 @@ function mythcho:CastQ(unit)
     	if ValidTarget(unit, spells.q.range) and spells.q.ready and state == SkillShot.STATUS.SUCCESS_HIT then
        		CastSpell(_Q, hitPos.x, hitPos.z)
       	end
+	elseif settings.pred == 3 then
+		local pos, chance = HPred:GetPredict("Q", unit, myHero) 
+		if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
+			CastSpell(_Q, pos.x, pos.z)
+		end
 	end
 end
 
@@ -101,6 +107,11 @@ function mythcho:CastW(unit)
     	if ValidTarget(unit, spells.w.range) and spells.w.ready and state == SkillShot.STATUS.SUCCESS_HIT then
        		CastSpell(_W, hitPos.x, hitPos.z)
       	end
+	elseif settings.pred == 3 then
+		local pos, chance = HPred:GetPredict("W", unit, myHero)
+		if ValidTarget(unit, spells.w.range) and spells.w.ready and chance >= 2 then
+			CastSpell(_W, pos.x, pos.z)
+		end
 	end
 end
 
@@ -217,10 +228,24 @@ function OnLoad()
 	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
 	creep = minionManager(MINION_ENEMY, 200, myHero, MINION_SORT_HEALTH_ASC)
 	pred = VPrediction()
+	HPred = HPrediction()
+	hpload = true
 
 	mythcho:Menu()
 
 	DelayAction(orbwalkCheck,7)
+
+	if hpload then
+		Spell_Q.type['Chogath'] = "PromptCircle"
+  		Spell_Q.delay['Chogath'] = .625
+  		Spell_Q.range['Chogath'] = 950
+  		Spell_Q.radius['Chogath'] = 150
+  		Spell_W.type['Chogath'] = "PromptLine"
+  		Spell_W.delay['Chogath'] = .25
+  		Spell_W.range['Chogath'] = 660
+  		Spell_W.radius['Chogath'] = 210
+  		Spell_W.width['Chogath'] = 420
+  	end
 end
 
 -- Tick hook
@@ -400,7 +425,7 @@ function mythcho:Menu()
 	settings.draw:addParam("rdmg", "Draw R Damage", SCRIPT_PARAM_ONOFF, true)
 	settings.draw:addParam("target", "Draw Target", SCRIPT_PARAM_ONOFF, true)
 
-    settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, { "VPrediction", "DivinePred"})
+    settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, { "VPrediction", "DivinePred", "HPred"})
 end
 
 
