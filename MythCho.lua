@@ -1,8 +1,11 @@
-local version = "1.2"
+local version = "1.21"
 
 ----------------------
 --   Auto Updater   --
 ----------------------
+
+if myHero.charName ~= "Chogath" then return end
+
 
 local mythcho = {}
 local autoupdate = true
