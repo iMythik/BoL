@@ -1,4 +1,4 @@
-local version = "1.22"
+local version = "1.23"
 
 ----------------------
 --   Auto Updater   --
@@ -62,10 +62,14 @@ function orbwalkCheck()
 	if _G.AutoCarry then
 		printChat("SA:C detected, support enabled.")
 		SACLoaded = true
+	elseif _G.MMA_Loaded then
+		printChat("MMA detected, support enabled.")
+		MMALoaded = true
 	else
-		printChat("SA:C not running, loading SxOrbWalk.")
+		printChat("SA:C/MMA not running, loading SxOrbWalk.")
 		require("SxOrbWalk")
-		SxOrb:LoadToMenu(Menu)
+		SxMenu = scriptConfig("SxOrbWalk", "SxOrbb")
+		SxOrb:LoadToMenu(SxMenu)
 		SACLoaded = false
 	end
 end
@@ -130,7 +134,9 @@ end
 function mythcho:shoot(unit)
 	if SACLoaded then
 		AutoCarry.Orbwalker:Orbwalk(unit)
-	else
+	elseif MMALoaded then
+		_G.MMA_ForceTarget = unit
+	else 
 		SxOrb:ForceTarget(unit)
 	end
 	if settings.combo.autoq then
@@ -149,6 +155,10 @@ function mythcho:Harass(unit)
 
 	if settings.harass.q and ValidTarget(unit, spells.q.range) then
 		mythcho:CastQ(unit)
+	end
+
+	if settings.harass.w and ValidTarget(unit, spells.w.range) then
+		mythcho:CastW(unit)
 	end
 
 	if settings.harass.autoq and ValidTarget(unit, spells.q.range) then
@@ -212,6 +222,7 @@ function mythcho:getTarg()
 	ts:update()
 	if _G.AutoCarry and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then _G.AutoCarry.Crosshair:SetSkillCrosshairRange(1200) return _G.AutoCarry.Crosshair:GetTarget() end		
 	if ValidTarget(SelectedTarget) then return SelectedTarget end
+	if MMALoaded and ValidTarget(_G.MMA_Target) then return _G.MMA_Target end
 	return ts.target
 end
 
