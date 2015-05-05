@@ -1,4 +1,4 @@
-local version = "1.00"
+local version = "1.1"
 
 ----------------------
 --   Auto Updater   --
@@ -30,6 +30,12 @@ function update()
 end
 
 require("VPrediction") --vpred
+require("DivinePred") -- divinepred
+
+local processTime  = os.clock()*1000
+local enemyChamps = {}
+local dp = DivinePred()
+local minHitDistance = 50
 local pred = nil
 
 ----------------------
@@ -64,21 +70,38 @@ end
 --  Cast functions  --
 ----------------------
 
+local qpred = CircleSS(math.huge, 950, 150, 1.2, math.huge)
+local wpred = LineSS(math.huge, 660, 210, .25, math.huge)
+
 function mythcho:CastQ(unit)
-    local castPos, chance, pos = pred:GetCircularCastPosition(unit, 1.2, 175, 950, math.huge, myHero, false)
-  
-    if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
-        CastSpell(_Q, castPos.x, castPos.z)
-    end
+	if settings.pred == 1 then
+    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, 1.2, 175, 950, math.huge, myHero, false)
+    	if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
+    	    CastSpell(_Q, castPos.x, castPos.z)
+    	end
+    elseif settings.pred == 2 then
+    	local targ = DPTarget(unit)
+    	local state,hitPos,perc = dp:predict(targ, qpred)
+    	if ValidTarget(unit, spells.q.range) and spells.q.ready and state == SkillShot.STATUS.SUCCESS_HIT then
+       		CastSpell(_Q, hitPos.x, hitPos.z)
+      	end
+	end
 end
 
 -- Cast W
 function mythcho:CastW(unit)
-    local castPos, chance, pos = pred:GetLineCastPosition(unit, .25, 210, 660, math.huge, myHero, false)
-    
-    if ValidTarget(unit, spells.w.range) and spells.w.ready and chance >= 2 then
-        CastSpell(_W, castPos.x, castPos.z)
-    end
+	if settings.pred == 1 then
+    	local castPos, chance, pos = pred:GetLineCastPosition(unit, .25, 210, 660, math.huge, myHero, false)
+   	 	if ValidTarget(unit, spells.w.range) and spells.w.ready and chance >= 2 then
+     	   CastSpell(_W, castPos.x, castPos.z)
+    	end
+    elseif settings.pred == 2 then
+    	local targ = DPTarget(unit)
+    	local state,hitPos,perc = dp:predict(targ, wpred)
+    	if ValidTarget(unit, spells.w.range) and spells.w.ready and state == SkillShot.STATUS.SUCCESS_HIT then
+       		CastSpell(_W, hitPos.x, hitPos.z)
+      	end
+	end
 end
 
 -- Cast ult
@@ -184,6 +207,11 @@ function OnLoad()
 
 	if autoupdate then
 		update()
+	end
+
+	for i = 1, heroManager.iCount do
+    	local hero = heroManager:GetHero(i)
+		if hero.team ~= myHero.team then enemyChamps[""..hero.networkID] = DPTarget(hero) end
 	end
 
 	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
@@ -371,6 +399,8 @@ function mythcho:Menu()
 	settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, true)
 	settings.draw:addParam("rdmg", "Draw R Damage", SCRIPT_PARAM_ONOFF, true)
 	settings.draw:addParam("target", "Draw Target", SCRIPT_PARAM_ONOFF, true)
+
+    settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, { "VPrediction", "DivinePred"})
 end
 
 
