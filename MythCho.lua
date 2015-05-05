@@ -1,4 +1,4 @@
-local version = "1.21"
+local version = "1.22"
 
 ----------------------
 --   Auto Updater   --
@@ -150,6 +150,10 @@ function mythcho:Harass(unit)
 	if settings.harass.q and ValidTarget(unit, spells.q.range) then
 		mythcho:CastQ(unit)
 	end
+
+	if settings.harass.autoq and ValidTarget(unit, spells.q.range) then
+		mythcho:CastQ(unit)
+	end
 end
 
 -- Minion farm
@@ -281,8 +285,14 @@ function OnTick()
 
 	local targ = mythcho:getTarg()
 
-	if settings.harass.harassKey or settings.harass.autoq then
+	if settings.harass.harassKey then
 		mythcho:Harass(targ)
+	end
+
+	if settings.harass.autoq then
+		if ValidTarget(targ, spells.q.range) then
+			mythcho:CastQ(targ)
+		end
 	end
 
 	if settings.combo.comboKey then
