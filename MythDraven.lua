@@ -230,7 +230,6 @@ function OnCreateObj(object)
 end
 
 function OnDeleteObj(object)
-	--[[TO-Check: Different obects names depending on skins?]]
 	if GetDistance(object) < 500 and object.name == "Draven_Base_Q_reticle.troy" then
 		orbwalkPos(nil)
 	end
