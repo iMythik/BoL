@@ -1,4 +1,4 @@
-local version = "1.01"
+local version = "1.1"
 
 ----------------------
 --   Auto Updater   --
