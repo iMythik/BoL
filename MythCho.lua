@@ -1,4 +1,4 @@
-local version = "1.24"
+local version = "1.25"
 
 ----------------------
 --   Auto Updater   --
@@ -78,12 +78,12 @@ end
 --  Cast functions  --
 ----------------------
 
-local qpred = CircleSS(math.huge, 950, 150, .625, math.huge)
+local qpred = CircleSS(math.huge, 950, 200, 1.2, math.huge)
 local wpred = LineSS(math.huge, 660, 210, .25, math.huge)
 
 function mythcho:CastQ(unit)
 	if settings.pred == 1 then
-    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, .625, 175, 950, math.huge, myHero, false)
+    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, 1.2, 200, 950, math.huge, myHero, false)
     	if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
     	    CastSpell(_Q, castPos.x, castPos.z)
     	end
@@ -254,15 +254,8 @@ function OnLoad()
 	DelayAction(orbwalkCheck,7)
 
 	if hpload then
-		Spell_Q.type['Chogath'] = "PromptCircle"
-  		Spell_Q.delay['Chogath'] = .625
-  		Spell_Q.range['Chogath'] = 950
-  		Spell_Q.radius['Chogath'] = 150
-  		Spell_W.type['Chogath'] = "PromptLine"
-  		Spell_W.delay['Chogath'] = .25
-  		Spell_W.range['Chogath'] = 660
-  		Spell_W.radius['Chogath'] = 210
-  		Spell_W.width['Chogath'] = 420
+  		HPred:AddSpell("R", 'Chogath', {delay = 1.2, radius = 200, range = 900, type = "PromptCircle"})
+  		HPred:AddSpell("Q", 'DrMundo', {delay = .25, range = 660, radius = 210, type = "DelayLine", width = 420})
   	end
 end
 
