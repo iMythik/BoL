@@ -1,4 +1,4 @@
-local version = "1.25"
+local version = "1.26"
 
 ----------------------
 --   Auto Updater   --
@@ -254,8 +254,8 @@ function OnLoad()
 	DelayAction(orbwalkCheck,7)
 
 	if hpload then
-  		HPred:AddSpell("R", 'Chogath', {delay = 1.2, radius = 200, range = 900, type = "PromptCircle"})
-  		HPred:AddSpell("Q", 'DrMundo', {delay = .25, range = 660, radius = 210, type = "DelayLine", width = 420})
+  		HPred:AddSpell("Q", 'Chogath', {delay = 1.2, radius = 200, range = 900, type = "PromptCircle"})
+  		HPred:AddSpell("W", 'Chogath', {delay = .25, range = 660, radius = 210, type = "DelayLine", width = 420})
   	end
 end
 
