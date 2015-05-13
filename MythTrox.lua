@@ -1,4 +1,4 @@
-local version = "1.2"
+local version = "1.3"
 
 ----------------------
 --   Auto Updater   --
@@ -194,10 +194,6 @@ function mythtrox:Harass(unit)
 	if settings.harass.e and ValidTarget(unit, spells.e.range) then
 		mythtrox:CastE(unit)
 	end
-
-	if settings.harass.autoe and ValidTarget(unit, spells.e.range) then
-		mythtrox:CastQ(unit)
-	end
 end
 
 -- Minion farm
@@ -311,12 +307,12 @@ function OnTick()
 		for k, v in pairs(GetEnemyHeroes()) do
 			if settings.ks.e then
 				if ValidTarget(v, spells.e.range) and getDmg("E", v, myHero) >= v.health then
-					mythtrox:CastR(v)
+					mythtrox:CastE(v)
 				end
 			end
 			if settings.ks.q then
 				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
-					mythtrox:CastR(v)
+					mythtrox:CastQ(v)
 				end
 			end
 			if settings.ks.r then
@@ -330,7 +326,7 @@ function OnTick()
 	if settings.combo.autow then
 		if myHero:GetSpellData(_W).toggleState == 2 then
 			for k, v in pairs(GetEnemyHeroes()) do
-				if GetDistance(v, myHero) > 1000 then
+				if GetDistance(v, myHero) > 1000 or (GetDistance(v, myHero) < 1000 and v.dead)  then
 					CastSpell(_W)
 				end
 			end
