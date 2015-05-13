@@ -1,4 +1,4 @@
-local version = "1.3"
+local version = "1.4"
 
 ----------------------
 --   Auto Updater   --
@@ -361,7 +361,7 @@ function OnDraw()
 		mythtrox:DrawCircle(myHero.x, myHero.y, myHero.z, spells.q.range, ARGB(255,0,255,255))
 	end
 
-	if settings.draw.e and spells.q.ready then
+	if settings.draw.e and spells.e.ready then
 		mythtrox:DrawCircle(myHero.x, myHero.y, myHero.z, spells.e.range, ARGB(255,0,255,0))
 	end
 
