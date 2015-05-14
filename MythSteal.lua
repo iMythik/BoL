@@ -1,4 +1,3 @@
-local version = 0.01
 local autoupdate = true
 local UPDATE_NAME = "MythSteal"
 local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
@@ -104,11 +103,24 @@ local ss = {
     ["Zyra"] = { "Q","E","R"}
 }
 
+local spells = {}
+spells.q = {ready = false}
+spells.w = {ready = false}
+spells.e = {ready = false}
+spells.r = {ready = false}
+
+function readyCheck()
+    spells.q.ready, spells.w.ready, spells.e.ready, spells.r.ready = (myHero:CanUseSpell(_Q) == READY), (myHero:CanUseSpell(_W) == READY), (myHero:CanUseSpell(_E) == READY), (myHero:CanUseSpell(_R) == READY)
+end
+
 function OnLoad()
     printChat("Dragon stealer loaded!")
+    menu()
 end
 
 function OnTick()
+    readyCheck()
+
     for i=1, objManager.maxObjects, 1 do
         local object = objManager:getObject(i)
         if object ~= nil and object.name == "SRU_Dragon6.1.1" and object.visible and object.valid and not object.dead and GetDistance(object, myHero) < 950 then
@@ -119,16 +131,33 @@ function OnTick()
 
     if drag ~= nil and drag.visible and drag.valid and GetDistance(drag, myHero) < 950 and not drag.dead then
         for k, v in pairs(ss[myHero.charName]) do
+
+            if not settings.v then return end 
+
             if v == "Q" then spell = _Q 
                 elseif v == "W" then spell = _W 
                 elseif v == "E" then spell = _E
                 elseif v == "R" then spell = _R
             end
 
+            if not settings.Q and v == "Q" then return end
+            if not settings.W and v == "W" then return end
+            if not settings.E and v == "E" then return end
+            if not settings.R and v == "R" then return end
+
             if getDmg(v, drag, myHero) > drag.health then
                 CastSpell(spell, drag.x, drag.z)
             end
         end
     end
+end
 
+function menu()
+    settings = scriptConfig("MythSteal", "mythik")
+
+    for k, v in pairs(ss[myHero.charName]) do
+        settings:addParam(v, "Use "..v.." to steal dragon", SCRIPT_PARAM_ONOFF, true)
+    end
+
+    settings:addParam("ver", "Version", SCRIPT_PARAM_LIST, 1, {tostring(version)})
 end
