@@ -1,3 +1,4 @@
+version = 0.02
 local autoupdate = true
 local UPDATE_NAME = "MythSteal"
 local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
