@@ -27,7 +27,7 @@ local damage 		= _G.getDmg -- damage calc
 -- base table of all things that are holy
 local myth = {
 	name = "MythTrox", -- script name
-	ver = 2.1, -- script version
+	ver = "2.1", -- script version
 	foes = GetEnemyHeroes(), -- enemy champs
 	pred = {"VPred", "DivinePred", "HPred"}, -- prediction table
 	modules = {"VPrediction", "DivinePred", "HPrediction"}, --libs to load
