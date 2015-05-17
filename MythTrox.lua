@@ -12,6 +12,8 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
+ver = "2.1"
+
 if myHero.charName ~= "Aatrox" then return end
 
 --[[=======================================================
@@ -27,7 +29,7 @@ local damage 		= _G.getDmg -- damage calc
 -- base table of all things that are holy
 local myth = {
 	name = "MythTrox", -- script name
-	ver = "2.1", -- script version
+	ver = ver, -- script version
 	foes = GetEnemyHeroes(), -- enemy champs
 	pred = {"VPred", "DivinePred", "HPred"}, -- prediction table
 	modules = {"VPrediction", "DivinePred", "HPrediction"}, --libs to load
