@@ -1,483 +1,378 @@
-local version = "1.26"
+--[[
+	running on
+    __  ___        __   __     _  __      ______                                                     __      ___      ____ 
+   /  |/  /__  __ / /_ / /_   (_)/ /__   / ____/_____ ____ _ ____ ___   ___  _      __ ____   _____ / /__   |__ \    / __ \
+  / /|_/ // / / // __// __ \ / // //_/  / /_   / ___// __ `// __ `__ \ / _ \| | /| / // __ \ / ___// //_/   __/ /   / / / /
+ / /  / // /_/ // /_ / / / // // ,<    / __/  / /   / /_/ // / / / / //  __/| |/ |/ // /_/ // /   / ,<     / __/ _ / /_/ / 
+/_/  /_/ \__, / \__//_/ /_//_//_/|_|  /_/    /_/    \__,_//_/ /_/ /_/ \___/ |__/|__/ \____//_/   /_/|_|   /____/(_)\____/  
+        /____/                                                                                                             
 
-----------------------
---   Auto Updater   --
-----------------------
+	We've come a long way :) 
+
+	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
+--]]
+
+ver = 2.1
 
 if myHero.charName ~= "Chogath" then return end
 
+--[[=======================================================
+   Localization
+=========================================================]]
 
-local mythcho = {}
-local autoupdate = true
-local UPDATE_NAME = "MythCho"
-local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
-local UPDATE_URL = "http://raw.github.com/iMythik/BoL/master/MythCho.lua"
+local update        = true
+local me 			= _G.myHero -- LocalPlayer
+local CastSpell 	= _G.CastSpell -- Cast func
+local ValidTarget 	= _G.ValidTarget -- Valid target check
+local damage 		= _G.getDmg -- damage calc
 
-function printChat(msg) print("<font color='#009DFF'>[MythCho]</font><font color='#FFFFFF'> "..msg.."</font>") end
+-- base table of all things that are holy
+local myth = {
+	name = "MythCho", -- script name
+	ver = ver, -- script version
+	foes = GetEnemyHeroes(), -- enemy champs
+	pred = {"VPred", "DivinePred", "HPred"}, -- prediction table
+	modules = {"VPrediction", "DivinePred", "HPrediction"}, --libs to load
+	url = "http://raw.github.com/iMythik/BoL/master/MythCho.lua", --update url
+	ts = TargetSelector(TARGET_LOW_HP, 1000, DAMAGE_PHYSICAL, false, true), --target selector
+	creep = minionManager(MINION_ENEMY, 200, me, MINION_SORT_HEALTH_ASC), --creep selection
+	skill = {
+		q = {range=950,del=1.20,w=200},
+		w = {range=660,del=0.25,w=420},
+		e = {},
+		r = {range = 250}, -- player skill table 
+	}
+}
 
-function update()
-    local netdata = GetWebResult("raw.github.com", "/iMythik/BoL/master/MythCho.lua")
-    if netdata then
-        local netver = string.match(netdata, "local version = \"%d+.%d+\"")
-        netver = string.match(netver and netver or "", "%d+.%d+")
-        if netver then
-            netver = tonumber(netver)
-            if tonumber(version) < netver then
-                printChat("New version found, updating... don't press F9.")
-                DownloadFile(UPDATE_URL, UPDATE_FILE_PATH, function () printChat("Updated script ["..version.." to "..netver.."], press F9 twice to reload the script.") end)    
-            else
-                printChat("is running latest version!")
-            end
-        end
+--[[=======================================================
+   Updater
+=========================================================]]
+
+function myth:printChat(msg) -- chat message with prefix
+	print("<font color='#D40000'>["..myth.name.."]</font><font color='#FFFFFF'> "..msg.."</font>") 
+end
+
+function myth:update() -- updater func
+    local result = GetWebResult("raw.github.com", "/iMythik/BoL/master/"..myth.name..".lua")
+
+    if not result or result == nil then return end
+
+    local netv = string.match(result, "ver = \"%d+.%d+\"")
+    netv = string.match(netv and netv or "", "%d+.%d+")
+
+    if not netv or netv == nil then return end
+
+    netv = tonumber(netv)
+    if tonumber(myth.ver) < netv then
+        myth:printChat("New version found, updating... don't press F9.")
+        DownloadFile(myth.url, SCRIPT_PATH..myth.name..".lua", function() myth:printChat("Updated script ["..myth.ver.." to "..netv.."], press F9 twice to reload the script.") end)    
+    else
+        myth:printChat("is running latest version!")
     end
 end
 
-require("VPrediction") --vpred
-require("DivinePred") -- divinepred
-require("HPrediction") -- hpred
+--[[=======================================================
+   Module/Lib Loading
+=========================================================]]
 
-local processTime  = os.clock()*1000
-local enemyChamps = {}
-local dp = DivinePred()
-local minHitDistance = 50
-local pred = nil
-
-----------------------
---     Variables    --
-----------------------
-
-local spells = {}
-spells.q = {name = myHero:GetSpellData(_Q).name, ready = false, range = 950, width = 410}
-spells.w = {name = myHero:GetSpellData(_E).name, ready = false, range = 700, width = 145}
-spells.e = {name = myHero:GetSpellData(_E).name, ready = false, range = 660, width = 540}
-spells.r = {name = myHero:GetSpellData(_R).name, ready = false, range = 480, width = 480}
-
--- Spell cooldown check
-function mythcho:readyCheck()
-	spells.q.ready, spells.w.ready, spells.e.ready, spells.r.ready = (myHero:CanUseSpell(_Q) == READY), (myHero:CanUseSpell(_W) == READY), (myHero:CanUseSpell(_E) == READY), (myHero:CanUseSpell(_R) == READY)
-end
-
--- Orbwalker check
-function orbwalkCheck()
-	if _G.AutoCarry then
-		printChat("SA:C detected, support enabled.")
-		SACLoaded = true
-	elseif _G.MMA_Loaded then
-		printChat("MMA detected, support enabled.")
-		MMALoaded = true
+local loaded = {}
+for k, v in pairs(myth.modules) do -- require modules
+	if FileExist(LIB_PATH .. "/"..v..".lua") then
+		require(v)
+		table.insert(loaded, v)
 	else
-		printChat("SA:C/MMA not running, loading SxOrbWalk.")
+		myth:printChat("Library "..v.." not found")
+	end
+end
+
+local function loadPred() -- load pred intergration
+	for k, v in pairs(loaded) do
+		if v == "DivinePred" then
+			dpred = DivinePred()
+			myth.skill.q.pred = CircleSS(math.huge, myth.skill.q.range, myth.skill.q.w, myth.skill.q.del, math.huge)
+			myth.skill.w.pred = LineSS(math.huge, myth.skill.w.range, myth.skill.w.w, myth.skill.w.del, math.huge)
+		end
+		if v == "VPrediction" then
+			vpred = VPrediction()
+		end
+		if v == "HPrediction" then
+			hpred = HPrediction()
+			hpred:AddSpell("Q", 'Chogath', {delay = myth.skill.q.del, radius = myth.skill.q.w, range = myth.skill.q.range, type = "PromptCircle"})
+			hpred:AddSpell("W", 'Chogath', {delay = myth.skill.w.del, range = myth.skill.w.range, radius = (myth.skill.w.w / 2), type = "DelayLine", width = myth.skill.w.w})
+		end
+	end
+end
+
+--[[=======================================================
+   Orbwalker Intergration
+=========================================================]]
+
+local function getOrbwalk() -- return running orbwalk
+	if _G.AutoCarry then
+		return "sac"
+	elseif _G.MMA_Loaded then
+		return "mma"
+	else
+		return "none"
+	end
+end
+
+local function loadOrbwalk() -- load orbwalk if one isnt loaded
+	if getOrbwalk() == "sac" then
+		myth:printChat("SA:C Intergration loaded.")
+	elseif getOrbwalk() == "mma" then
+		myth:printChat("MMA Intergration loaded.")
+	else 
+		myth:printChat("No orbwalker found, loading SxOrbWalk...")
 		require("SxOrbWalk")
-		SxMenu = scriptConfig("SxOrbWalk", "SxOrbb")
-		SxOrb:LoadToMenu(SxMenu)
-		SACLoaded = false
 	end
 end
 
-----------------------
---  Cast functions  --
-----------------------
+local function target() -- target selection
+	myth.ts:update()
+	if getOrbwalk() == "sac" and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then return _G.AutoCarry.Crosshair:GetTarget() end		
+	if getOrbwalk() == "mma" and ValidTarget(_G.MMA_Target) then return _G.MMA_Target end
+	return myth.ts.target
+end
 
-local qpred = CircleSS(math.huge, 950, 200, 1.2, math.huge)
-local wpred = LineSS(math.huge, 660, 210, .25, math.huge)
+--[[=======================================================
+   Cast Functions
+=========================================================]]
 
-function mythcho:CastQ(unit)
-	if settings.pred == 1 then
-    	local castPos, chance, pos = pred:GetCircularCastPosition(unit, 1.2, 200, 950, math.huge, myHero, false)
-    	if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
-    	    CastSpell(_Q, castPos.x, castPos.z)
-    	end
-    elseif settings.pred == 2 then
-    	local targ = DPTarget(unit)
-    	local state,hitPos,perc = dp:predict(targ, qpred)
-    	if ValidTarget(unit, spells.q.range) and spells.q.ready and state == SkillShot.STATUS.SUCCESS_HIT then
-       		CastSpell(_Q, hitPos.x, hitPos.z)
-      	end
-	elseif settings.pred == 3 then
-		local pos, chance = HPred:GetPredict("Q", unit, myHero) 
-		if ValidTarget(unit, spells.q.range) and spells.q.ready and chance >= 2 then
-			CastSpell(_Q, pos.x, pos.z)
+function myth:cast(spell, targ) -- dynamic cast func
+	if spell == "q" then
+		if not settings.combo.q or not qready or not ValidTarget(targ, myth.skill.q.range) then return end
+		if settings.pred == 1 then
+			local cP,chance,pos = vpred:GetCircularCastPosition(targ, myth.skill.q.del, myth.skill.q.w, myth.skill.q.range, math.huge, me, false)
+			if chance >= 2 then
+    	    	CastSpell(_Q, cP.x, cP.z)
+    		end
+		elseif settings.pred == 2 then
+			local dpt = DPTarget(targ)
+    		local state,hitPos,perc = dpred:predict(dpt, myth.skill.q.pred)
+    		if state == SkillShot.STATUS.SUCCESS_HIT then
+       			CastSpell(_Q, hitPos.x, hitPos.z)
+      		end
+		elseif settings.pred == 3 then
+			local pos, chance = hpred:GetPredict("Q", targ, me) 
+			if chance >= 2 then
+				CastSpell(_Q, pos.x, pos.z)
+			end
 		end
 	end
-end
-
--- Cast W
-function mythcho:CastW(unit)
-	if settings.pred == 1 then
-    	local castPos, chance, pos = pred:GetLineCastPosition(unit, .25, 210, 660, math.huge, myHero, false)
-   	 	if ValidTarget(unit, spells.w.range) and spells.w.ready and chance >= 2 then
-     	   CastSpell(_W, castPos.x, castPos.z)
-    	end
-    elseif settings.pred == 2 then
-    	local targ = DPTarget(unit)
-    	local state,hitPos,perc = dp:predict(targ, wpred)
-    	if ValidTarget(unit, spells.w.range) and spells.w.ready and state == SkillShot.STATUS.SUCCESS_HIT then
-       		CastSpell(_W, hitPos.x, hitPos.z)
-      	end
-	elseif settings.pred == 3 then
-		local pos, chance = HPred:GetPredict("W", unit, myHero)
-		if ValidTarget(unit, spells.w.range) and spells.w.ready and chance >= 2 then
-			CastSpell(_W, pos.x, pos.z)
+	if spell == "w" then
+		if not settings.combo.w or not wready or not ValidTarget(targ, myth.skill.w.range) then return end
+		if settings.pred == 1 then
+    		local cP, chance, pos = vpred:GetLineCastPosition(targ, myth.skill.w.del, myth.skill.w.w, myth.skill.w.range, math.huge, me, false)
+   	 		if chance >= 2 then
+     	 		CastSpell(_W, cP.x, cP.z)
+    		end
+    	elseif settings.pred == 2 then
+    		local dpt = DPTarget(targ)
+    		local state,hitPos,perc = dpred:predict(dpt, myth.skill.w.pred)
+    		if state == SkillShot.STATUS.SUCCESS_HIT then
+       			CastSpell(_W, hitPos.x, hitPos.z)
+      		end
+		elseif settings.pred == 3 then
+			local pos, chance = hpred:GetPredict("W", targ, me)
+			if chance >= 2 then
+				CastSpell(_W, pos.x, pos.z)
+			end
 		end
 	end
-end
-
--- Cast ult
-function mythcho:CastR(unit)
-	if ValidTarget(unit, spells.r.range) and spells.r.ready then
-		if settings.combo.kill and getDmg("R", unit, myHero) < unit.health then return end
+	if spell == "e" then
+	end
+	if spell == "r" then
+		if not settings.combo.r or not rready or not ValidTarget(targ, myth.skill.r.range) then return end
+		if settings.combo.kill and damage("R", targ, me) < targ.health then return end
 		CastSpell(_R, unit)
 	end
-end	
-
--- Full Combo
-function mythcho:shoot(unit)
-	if SACLoaded then
-		AutoCarry.Orbwalker:Orbwalk(unit)
-	elseif MMALoaded then
-		_G.MMA_ForceTarget = unit
-	else 
-		SxOrb:ForceTarget(unit)
-	end
-	if settings.combo.autoq then
-		mythcho:CastQ(unit)
-	end
-	if settings.combo.autow then
-		mythcho:CastW(unit)
-	end
-	if settings.combo.autoR then
-		mythcho:CastR(unit)
-	end
 end
 
-function mythcho:Harass(unit)
-	if not settings.harass.harassKey then return end
-
-	if settings.harass.q and ValidTarget(unit, spells.q.range) then
-		mythcho:CastQ(unit)
-	end
-
-	if settings.harass.w and ValidTarget(unit, spells.w.range) then
-		mythcho:CastW(unit)
-	end
-
-	if settings.harass.autoq and ValidTarget(unit, spells.q.range) then
-		mythcho:CastQ(unit)
-	end
+local function bang(unit) -- combo (bang bang skudda)
+	myth:cast("q", unit)
+	myth:cast("w", unit)
+	myth:cast("r", unit)
 end
 
--- Minion farm
-function mythcho:Farm()
-	creep:update()
-		
-	for i, minion in pairs(creep.objects) do
-
-		if not settings.farm.farmkey then return end
-
-		if settings.farm.farmq and getDmg("Q", minion, myHero) >= minion.health then
-			mythcho:CastQ(minion)
-		end
-
-		if settings.farm.farmw then
-			mythcho:CastW(minion)
-		end
-	end
-end
-
-----------------------
---   Calculations   --
-----------------------
-
--- Target Selection
-function OnWndMsg(Msg, Key)
-	if Msg == WM_LBUTTONDOWN and settings.combo.focus then
-		local dist = 0
-		local Selecttarget = nil
-		for i, enemy in ipairs(GetEnemyHeroes()) do
-			if ValidTarget(enemy) then
-				if GetDistance(enemy, mousePos) <= dist or Selecttarget == nil then
-					dist = GetDistance(enemy, mousePos)
-					Selecttarget = enemy
-				end
-			end
-		end
-		if Selecttarget and dist < 300 then
-			if SelectedTarget and Selecttarget.charName == SelectedTarget.charName then
-				SelectedTarget = nil
-				if settings.combo.focus then 
-					printChat("Target unselected: "..Selecttarget.charName) 
-				end
-			else
-				SelectedTarget = Selecttarget
-				if settings.combo.focus then
-					printChat("New target selected: "..Selecttarget.charName) 
-				end
-			end
-		end
-	end
-end
-
--- Target Calculation
-function mythcho:getTarg()
-	ts:update()
-	if _G.AutoCarry and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then _G.AutoCarry.Crosshair:SetSkillCrosshairRange(1200) return _G.AutoCarry.Crosshair:GetTarget() end		
-	if ValidTarget(SelectedTarget) then return SelectedTarget end
-	if MMALoaded and ValidTarget(_G.MMA_Target) then return _G.MMA_Target end
-	return ts.target
-end
-
-----------------------
---      Hooks       --
-----------------------
-
--- Init hook
-function OnLoad()
-	print("<font color='#009DFF'>[MythCho]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>[v"..version.."]</font>")
-
-	if autoupdate then
-		update()
-	end
-
-	for i = 1, heroManager.iCount do
-    	local hero = heroManager:GetHero(i)
-		if hero.team ~= myHero.team then enemyChamps[""..hero.networkID] = DPTarget(hero) end
-	end
-
-	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
-	creep = minionManager(MINION_ENEMY, 200, myHero, MINION_SORT_HEALTH_ASC)
-	pred = VPrediction()
-	HPred = HPrediction()
-	hpload = true
-
-	mythcho:Menu()
-
-	DelayAction(orbwalkCheck,7)
-
-	if hpload then
-  		HPred:AddSpell("Q", 'Chogath', {delay = 1.2, radius = 200, range = 900, type = "PromptCircle"})
-  		HPred:AddSpell("W", 'Chogath', {delay = .25, range = 660, radius = 210, type = "DelayLine", width = 420})
-  	end
-end
-
--- Tick hook
-function OnTick()
-	mythcho:readyCheck()
-
-	ts:update()
-
-	local hp = myHero.health / myHero.maxHealth * 100
-
-	if settings.farm.farmkey then
-		mythcho:Farm()
-	end
-
-	if settings.ks.r or settings.ks.q then
-		for k, v in pairs(GetEnemyHeroes()) do
-			if settings.ks.r then
-				if ValidTarget(v, spells.r.range) then
-					mythcho:CastR(v)
-				end
-			elseif settings.ks.q then
-				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
-					mythcho:CastQ(v)
-				end
-			end
-		end
-	end
-
-	if not ValidTarget(mythcho:getTarg()) then return end
-
-	local targ = mythcho:getTarg()
-
-	if settings.harass.harassKey then
-		mythcho:Harass(targ)
-	end
-
+local function harass(unit) -- harass dat nigga
 	if settings.harass.autoq then
-		if ValidTarget(targ, spells.q.range) then
-			mythcho:CastQ(targ)
+		myth:cast("q", unit)
+	end
+
+	if settings.harass.key then
+		if settings.harass.q then
+			myth:cast("q", unit)
+		end
+
+		if settings.harass.w then
+			myth:cast("w", unit)
 		end
 	end
-
-	if settings.combo.comboKey then
-		mythcho:shoot(targ)
-	end
-
 end
 
--- thank you bilbao <3
-
-function GetHPBarPos(enemy)
-	enemy.barData = {PercentageOffset = {x = -0.05, y = 0}}
-	local barPos = GetUnitHPBarPos(enemy)
-	local barPosOffset = GetUnitHPBarOffset(enemy)
-	local barOffset = { x = enemy.barData.PercentageOffset.x, y = enemy.barData.PercentageOffset.y }
-	local barPosPercentageOffset = { x = enemy.barData.PercentageOffset.x, y = enemy.barData.PercentageOffset.y }
-	local BarPosOffsetX = -50
-	local BarPosOffsetY = 46
-	local CorrectionY = 39
-	local StartHpPos = 31
-
-	barPos.x = math.floor(barPos.x + (barPosOffset.x - 0.5 + barPosPercentageOffset.x) * BarPosOffsetX + StartHpPos)
-	barPos.y = math.floor(barPos.y + (barPosOffset.y - 0.5 + barPosPercentageOffset.y) * BarPosOffsetY + CorrectionY)
-
-	local StartPos = Vector(barPos.x , barPos.y, 0)
-	local EndPos = Vector(barPos.x + 108 , barPos.y , 0)
+local function farm() -- minion farm
+	myth.creep:update()
 	
-return Vector(StartPos.x, StartPos.y, 0), Vector(EndPos.x, EndPos.y, 0)
-end
+	for i, m in pairs(myth.creep.objects) do
+		if settings.farm.q and damage("Q", m, me) >= m.health then
+			myth:cast("q", m)
+		end
 
-function DrawLineHPBar(damage, line, text, unit, enemyteam)
-	if unit.dead or not unit.visible then return end
-	local p = WorldToScreen(D3DXVECTOR3(unit.x, unit.y, unit.z))
-	if not OnScreen(p.x, p.y) then return end
-
-	
-	local thedmg = 0
-	local linePosA = {x = 0, y = 0 }
-	local linePosB = {x = 0, y = 0 }
-	local TextPos =  {x = 0, y = 0 }
-	
-	
-	if damage >= unit.maxHealth then
-		thedmg = unit.maxHealth - 1
-	else
-		thedmg = damage
-	end
-	
-	
-	local StartPos, EndPos = GetHPBarPos(unit)
-	local Real_X = StartPos.x + 24
-	local Offs_X = (Real_X + ((unit.health - thedmg) / unit.maxHealth) * (EndPos.x - StartPos.x - 2))
-	if Offs_X < Real_X then Offs_X = Real_X end	
-
-	local r, r2 = 255, 255
-	local g, g2 = 0, 255
-	local b = 255
-
-	if thedmg >= unit.health then g = 255 r = 0 g2 = 255 r2 = 0 b = 0 text = text.." (Killable!)" end
-
-	if enemyteam then
-		linePosA.x = Offs_X-150
-		linePosA.y = (StartPos.y-(30+(line*15)))	
-		linePosB.x = Offs_X-150
-		linePosB.y = (StartPos.y-10)
-		TextPos.x = Offs_X-148
-		TextPos.y = (StartPos.y-(30+(line*15)))
-	else
-		linePosA.x = Offs_X-125
-		linePosA.y = (StartPos.y-(30+(line*15)))	
-		linePosB.x = Offs_X-125
-		linePosB.y = (StartPos.y-15)
-	
-		TextPos.x = Offs_X-122
-		TextPos.y = (StartPos.y-(30+(line*15)))
-	end
-
-	DrawLine(linePosA.x, linePosA.y, linePosB.x, linePosB.y , 2, ARGB(255, r, g, 0))
-	DrawText(tostring(text),15,TextPos.x, TextPos.y - 10, ARGB(255, r2, g2, b))
-	
-end
-
--- Drawing hook
-function OnDraw()
-	if myHero.dead then return end
-
-	if settings.draw.q and spells.q.ready then
-		mythcho:DrawCircle(myHero.x, myHero.y, myHero.z, spells.q.range, ARGB(255,0,255,0))
-	end
-
-	if settings.draw.w and spells.w.ready then
-		mythcho:DrawCircle(myHero.x, myHero.y, myHero.z, spells.w.range, ARGB(255,255,255,0))
-	end
-
-	if settings.draw.r and spells.r.ready then
-		mythcho:DrawCircle(myHero.x, myHero.y, myHero.z, spells.r.range, ARGB(255,255,0,0))
-	end
-
-	if settings.draw.target and ValidTarget(mythcho:getTarg()) then
-		local targ = mythcho:getTarg()
-		mythcho:DrawCircle(targ.x, targ.y, targ.z, 100, ARGB(255,255,120,0))
-	end
-
-	if ValidTarget(mythcho:getTarg()) and settings.draw.rdmg and spells.r.ready then
-		local targ = mythcho:getTarg()
-		DrawLineHPBar(getDmg("R", targ, myHero), 1, " R Damage: "..math.round(getDmg("R", targ, myHero)), targ, true)
+		if settings.farm.e and damage("E", m, me) >= m.health then
+			myth:cast("e", m)
+		end
 	end
 end
 
--- Menu creation
-function mythcho:Menu()
-	settings = scriptConfig("MythCho", "mythik")
-	TargetSelector.name = "MythCho"
-	settings:addTS(ts)
+local function steal() -- killsteal
+	for k, v in pairs(myth.foes) do
+		if settings.ks.q and ValidTarget(v, myth.skill.q.range) and damage("Q", v, me) > v.health then
+			myth:cast("q", unit)
+		end
+		if settings.ks.w and ValidTarget(v, myth.skill.w.range) and damage("W", v, me) > v.health then
+			myth:cast("w", unit)
+		end
+		if settings.ks.r and ValidTarget(v, myth.skill.r.range) and damage("R", v, me) > v.health then
+			myth:cast("r", unit)
+		end
+	end
+end
 
-	settings:addSubMenu("Combo", "combo")
-	settings.combo:addParam("comboKey", "Combo Key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
-	settings.combo:addParam("autoq", "Auto Q", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("autoR", "Auto R", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("kill", "Only ult if killable", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("focus", "Focus selected target", SCRIPT_PARAM_ONOFF, true)
+--[[=======================================================
+   Menu
+=========================================================]]
+
+local function menu()
+	settings = scriptConfig("["..myth.name.."]", "mythik")
+
+	TargetSelector.name = "Target Select"
+
+	settings:addSubMenu("Full Combo", "combo")
+	settings.combo:addParam("key", "Combo Key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
+	settings.combo:addParam("q", "Auto Q", SCRIPT_PARAM_ONOFF, false)
+	settings.combo:addParam("w", "Auto W", SCRIPT_PARAM_ONOFF, false)
+	settings.combo:addParam("r", "Auto R", SCRIPT_PARAM_ONOFF, false)
+	settings.combo:addParam("kill", "Only ult if killable", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addSubMenu("Harass", "harass")
-	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
-	settings.harass:addParam("autoq", "Auto Q in range", SCRIPT_PARAM_ONKEYTOGGLE, true, string.byte("T"))
+	settings.harass:addParam("key", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
+	settings.harass:addParam("autoq", "Auto Q in range", SCRIPT_PARAM_ONKEYTOGGLE, false, string.byte("T"))
 	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, false)
 	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, false)
 
-	settings:addSubMenu("Farm", "farm")
-	settings.farm:addParam("farmkey", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
-	settings.farm:addParam("farmq", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
-	settings.farm:addParam("farmw", "Farm with W", SCRIPT_PARAM_ONOFF, false)
-
 	settings:addSubMenu("Kill Steal", "ks")
-	settings.ks:addParam("r", "Use R", SCRIPT_PARAM_ONOFF, true)
-	settings.ks:addParam("q", "Use Q", SCRIPT_PARAM_ONOFF, true)
+	settings.ks:addParam("q", "Kill steal with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.ks:addParam("e", "Kill steal with E", SCRIPT_PARAM_ONOFF, false)
+	settings.ks:addParam("r", "Kill steal with R", SCRIPT_PARAM_ONOFF, false)
+
+	settings:addSubMenu("Farm", "farm")
+	settings.farm:addParam("key", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
+	settings.farm:addParam("q", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.farm:addParam("e", "Farm with E", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addSubMenu("Drawing", "draw")
-	settings.draw:addParam("q", "Draw Q", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("w", "Draw W", SCRIPT_PARAM_ONOFF, false)
-	settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("rdmg", "Draw R Damage", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("target", "Draw Target", SCRIPT_PARAM_ONOFF, true)
 
-    settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, { "VPrediction", "DivinePred", "HPred"})
+	if myth.skill.q.range ~= nil then
+		settings.draw:addParam("q", "Draw Q", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.w.range ~= nil then
+		settings.draw:addParam("w", "Draw W", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.e.range ~= nil then
+		settings.draw:addParam("e", "Draw E", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.r.range ~= nil then
+		settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, false)
+	end
+
+	settings:addTS(myth.ts)
+	settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, loaded)
 end
 
+--[[=======================================================
+   Main Hooks
+=========================================================]]
 
---Lag Free Circles
-function mythcho:DrawCircle(x, y, z, radius, color)
-	local vPos1 = Vector(x, y, z)
-	local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
-	local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
-	local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
-		
-	if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
-		self:DrawCircleNextLvl(x, y, z, radius, 1, color, 300) 
+function OnLoad()
+	myth:printChat("has loaded!<font color='#2BFF00'> ["..myth.ver.."]")
+
+	if getOrbwalk() == "none" then -- Incase the script is reloaded, and sa:c/mma is already loaded
+		DelayAction(loadOrbwalk, 7)
+	else
+		loadOrbwalk()
+	end
+
+	DelayAction(loadPred, 3) -- load prediction
+
+	menu() -- load menu
+
+	myth:update()
+end
+
+function OnTick()
+	qready, wready, eready, rready = me:CanUseSpell(_Q) == READY, me:CanUseSpell(_W) == READY, me:CanUseSpell(_E) == READY, me:CanUseSpell(_R) == READY
+
+	myth.ts:update() --update target selection
+	myth.creep:update() --update creep selection
+
+	if settings.combo.key then -- combo
+		bang(target())
+	end
+
+	harass(target()) -- harass
+	
+	if settings.farm.key then -- farm
+		farm()
+	end
+
+	steal() -- kill stealer
+end
+
+function OnDraw()
+	if myth.skill.q.range ~= nil and settings.draw.q and qready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.q.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.w.range ~= nil and settings.draw.w and wready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.w.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.e.range ~= nil and settings.draw.e and eready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.e.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.r.range ~= nil and settings.draw.r and rready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.r.range, ARGB(125,0,150,255))
 	end
 end
 
-function mythcho:DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
-	radius = radius or 300
-	quality = math.max(8, self:Round(180 / math.deg((math.asin((chordlength / (2 * radius)))))))
-	quality = 2 * math.pi / quality
-	radius = radius * .92
-	local points = {}
-		
-	for theta = 0, 2 * math.pi + quality, quality do
-		local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
-		points[#points + 1] = D3DXVECTOR2(c.x, c.y)
-	end
-	DrawLines2(points, width or 1, color or 4294967295)	
+--[[=======================================================
+   Lag-Free Circles
+=========================================================]]
+
+local function round(num) 
+	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
 end
 
-function mythcho:Round(number)
-	if number >= 0 then 
-		return math.floor(number+.5) 
-	else 
-		return math.ceil(number-.5) 
-	end
+local function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
+    radius = radius or 300
+  	quality = math.max(8,round(180/math.deg((math.asin((chordlength/(2*radius)))))))
+  	quality = 2 * math.pi / quality
+	radius = radius*.92
+    local points = {}
+    for theta = 0, 2 * math.pi + quality, quality do
+        local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
+        points[#points + 1] = D3DXVECTOR2(c.x, c.y)
+    end
+    DrawLines2(points, width or 1, color or 4294967295)
+end
+
+function DrawCircle(x, y, z, radius, color)
+    local vPos1 = Vector(x, y, z)
+    local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
+    local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
+    local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
+    if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
+        DrawCircleNextLvl(x, y, z, radius, 1, color, 200) 
+    end
 end
 
 assert(load(Base64Decode("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"), nil, "bt", _ENV))() ScriptStatus("OBEDBBDBEDA") 
