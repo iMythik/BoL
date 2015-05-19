@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 2.1
+ver = 2.2
 
 if myHero.charName ~= "Chogath" then return end
 
@@ -185,7 +185,7 @@ function myth:cast(spell, targ) -- dynamic cast func
 	if spell == "r" then
 		if not settings.combo.r or not rready or not ValidTarget(targ, myth.skill.r.range) then return end
 		if settings.combo.kill and damage("R", targ, me) < targ.health then return end
-		CastSpell(_R, unit)
+		CastSpell(_R, targ)
 	end
 end
 
