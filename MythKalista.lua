@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.1
+ver = 1.2
 
 if myHero.charName ~= "Kalista" then return end
 
@@ -37,7 +37,7 @@ local myth = {
 	ts = TargetSelector(TARGET_LOW_HP, 1500, DAMAGE_PHYSICAL, false, true), --target selector
 	creep = minionManager(MINION_ENEMY, 200, me, MINION_SORT_HEALTH_ASC), --creep selection
 	skill = {
-		q = {range=1200,del=0.25,speed=1750,w=70},
+		q = {range=1200,del=0.35,speed=2400,w=110},
 		w = {},
 		e = {},
 		r = {},
@@ -96,7 +96,8 @@ local function loadPred() -- load pred intergration
 		end
 		if v == "HPrediction" then
 			hpred = HPrediction()
-			HP_Q = HPSkillshot({type = "DelayLine", delay = 0.25, range = 1200, collisionM = true, collisionH = true, width = 1750, speed = 1750})		end
+			HP_Q = HPSkillshot({type = "DelayLine", delay = myth.skill.q.del, range = myth.skill.q.range, speed = myth.skill.q.speed, collisionM = true, collisionH = true, width = myth.skill.q.w})
+		end
 	end
 end
 
@@ -143,13 +144,6 @@ function OnUpdateBuff(Unit, Buff, Stacks)
    if Buff.name == "kalistaexpungemarker" then
       unitStacks[Unit.networkID] = Stacks
    end
-
-   if Buff.name == "kalistavobindally" then
-   		if unit ~= me.name then
-   			myth:printChat(Unit.." is now binded as your support.")
-   			m8 = Unit -- u fokin wot m8? 8/8 gr8 m8
-   		end
-   	end
 end
  
 function OnRemoveBuff(Unit, Buff)
@@ -160,6 +154,14 @@ end
 
 function GetStacks(unit)
    return unitStacks[unit.networkID] or 0
+end
+
+function OnProcessSpell(unit, spell)
+	if GetDistance(unit) > 1000 then return end
+	if spell.name == "KalistaPSpellCast" then 
+		myth:printChat(spell.target.." is now binded as your support.")
+		m8 = spell.target -- u fokin wot m8!?!?!?
+	end
 end
 
 --[[=======================================================
@@ -181,8 +183,8 @@ function myth:cast(spell, targ) -- dynamic cast func
        			CastSpell(_Q, hitPos.x, hitPos.z)
       		end
 		elseif settings.pred == 3 then
-			QPos, QHitChance = hpred:GetPredict(HP_Q, targ, me)
-			if QHitChance >= 2 then
+			cP, chance = hpred:GetPredict(HP_Q, targ, me)
+			if chance >= 1.6 then
 				CastSpell(_Q, cP.x, cP.z)
 			end
 		end
@@ -201,23 +203,29 @@ function myth:cast(spell, targ) -- dynamic cast func
 end
 
 local function rendDamage(unit)
+	if elvl == 0 then return 0 end
 	if elvl == 1 then
-		dmg = 20 + 0.6 * me.totalDamage + (0.3 * me.totalDamage + 10 * GetStacks(unit))
+		speardmg = 10 + (me.totalDamage * 0.20) * GetStacks(unit)
+		dmg = 20 + (me.totalDamage * 0.6)
 	end
 	if elvl == 2 then
-		dmg = 30 + 0.6 * me.totalDamage + (0.3 * me.totalDamage + 14 * GetStacks(unit))
+		speardmg = 14 + (me.totalDamage * 0.22) * GetStacks(unit)
+		dmg = 30 + (me.totalDamage * 0.6)
 	end		
 	if elvl == 3 then
-		dmg = 40 + 0.6 * me.totalDamage + (0.3 * me.totalDamage + 19 * GetStacks(unit))
+		speardmg = 19 + (me.totalDamage * 0.25) * GetStacks(unit)
+		dmg = 40 + (me.totalDamage * 0.6)
 	end	
 	if elvl == 4 then
-		dmg = 50 + 0.6 * me.totalDamage + (0.3 * me.totalDamage + 25 * GetStacks(unit))
+		speardmg = 25 + (me.totalDamage * 0.27) * GetStacks(unit)
+		dmg = 50 + (me.totalDamage * 0.6)
 	end	
 	if elvl == 5 then
-		dmg = 60 + 0.6 * me.totalDamage + (0.3 * me.totalDamage + 32 * GetStacks(unit))
+		speardmg = 32 + (me.totalDamage * 0.3) * GetStacks(unit)
+		dmg = 60 + (me.totalDamage * 0.6)
 	end	
 
-	return dmg
+	return round(dmg + speardmg)
 end	
 
 local function saveFriend()
@@ -269,6 +277,23 @@ local function steal() -- killsteal
 	end
 end
 
+local function dragSteal()
+	if not settings.drag then return end
+
+	for i=1, objManager.maxObjects, 1 do
+        local object = objManager:getObject(i)
+        if object ~= nil and object.name == "SRU_Dragon6.1.1" and object.visible and object.valid and not object.dead and GetDistance(object, myHero) < 950 then
+            drag = object
+        end
+    end
+
+    if drag ~= nil and drag.visible and drag.valid and GetDistance(drag, me) < 950 and not drag.dead then
+    	if rendDamage(drag) >= drag.health then
+    		CastSpell(_E)
+    	end
+    end
+end
+
 --[[=======================================================
    Menu
 =========================================================]]
@@ -290,11 +315,11 @@ local function menu()
 
 	settings:addSubMenu("Kill Steal", "ks")
 	settings.ks:addParam("q", "Kill steal with Q", SCRIPT_PARAM_ONOFF, false)
-	settings.ks:addParam("e", "Kill steal with E", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("key", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
 	settings.farm:addParam("q", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.farm:addParam("e", "Farm with E", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addSubMenu("Drawing", "draw")
 
@@ -310,6 +335,8 @@ local function menu()
 	if myth.skill.r.range ~= nil then
 		settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, false)
 	end
+
+	settings:addParam("drag", "Dragon/Baron steal", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addTS(myth.ts)
 	settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, loaded)
@@ -354,7 +381,9 @@ function OnTick()
 
 	steal() -- kill stealer
 
-	saveFriend()
+	saveFriend() -- friend saver
+
+	dragSteal() -- dragon stealer
 end
 
 function OnDraw()
@@ -373,7 +402,14 @@ function OnDraw()
 
 	if ValidTarget(target()) and eready then
 		local targ = target()
-		DrawLineHPBar(rendDamage(targ), 1, " E Damage: "..math.round(rendDamage(targ)), targ, true)
+		if GetStacks(targ) == 0 then return end
+		DrawLineHPBar(rendDamage(targ), 1, " E Damage: "..rendDamage(targ), targ, true)
+	end
+
+	if ValidTarget(drag) and eready and settings.drag then
+		local targ = drag
+		if GetStacks(targ) == 0 then return end
+		DrawLineHPBar(rendDamage(targ), 1, " E Damage: "..rendDamage(targ), targ, true)
 	end
 end
 
