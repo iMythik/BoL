@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.3
+ver = 1.31
 
 if myHero.charName ~= "Kalista" then return end
 
