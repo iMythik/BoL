@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.2
+ver = 1.3
 
 if myHero.charName ~= "Kalista" then return end
 
@@ -37,7 +37,7 @@ local myth = {
 	ts = TargetSelector(TARGET_LOW_HP, 1500, DAMAGE_PHYSICAL, false, true), --target selector
 	creep = minionManager(MINION_ENEMY, 200, me, MINION_SORT_HEALTH_ASC), --creep selection
 	skill = {
-		q = {range=1200,del=0.35,speed=2400,w=110},
+		q = {range=1200,del=0.35,speed=2400,w=60},
 		w = {},
 		e = {},
 		r = {},
@@ -88,8 +88,10 @@ end
 local function loadPred() -- load pred intergration
 	for k, v in pairs(loaded) do
 		if v == "DivinePred" then
+			local delaymil = myth.skill.q.del * 1000
 			dpred = DivinePred()
-			myth.skill.q.pred = LineSS(myth.skill.q.speed, myth.skill.q.range, myth.skill.q.w, myth.skill.q.del, 0)
+			dpred.maxCalcTime = 110
+			myth.skill.q.pred = LineSS(myth.skill.q.speed, myth.skill.q.range, myth.skill.q.w, delaymil, 0)
 		end
 		if v == "VPrediction" then
 			vpred = VPrediction()
@@ -165,6 +167,71 @@ function OnProcessSpell(unit, spell)
 end
 
 --[[=======================================================
+   Wall Jumper
+=========================================================]]
+
+local constXmove, constZmove = 425, 275
+
+local spots = {
+	{x = 7872, y = 51, z = 6008},
+	{x = 9072, y = 52, z = 4608},
+	{x = 8272, y = 51, z = 3208},
+	{x = 7026, y = 52, z = 8760},
+	{x = 5724, y = 56, z = 10806},
+	{x = 11750, y = -71, z = 4632},
+	{x = 3074, y = 53, z = 10056},
+	{x = 3780, y = 51, z = 7404},
+	{x = 3024, y = 57, z = 6108},
+	{x = 5224, y = 56, z = 11806},
+	{x = 6550, y = 53, z = 11718},
+	{x = 11122, y = 52, z = 7506},
+	{x = 9672, y = 49, z = 2808},
+	{x = 11582, y = 64, z = 8722}
+}
+
+local spotend = {
+	{x = 8026, y = -71, z = 6178},
+	{x = 9322, y = -71, z = 4458},
+	{x = 8306, y = -51, z = 2914},
+	{x = 6860, y = -70, z = 8618},
+	{x = 5474, y = -71, z = 10656},
+	{x = 11922, y = 51, z = 4758},
+	{x = 3324, y = -64, z = 10156},
+	{x = 3724, y = 52, z = 7706},
+	{x = 3224, y = 52, z = 6258},
+	{x = 5330, y = 56, z = 12104},
+	{x = 6498, y = 56, z = 11986},
+	{x = 11092, y = 51, z = 7192},
+	{x = 9734, y = 64, z = 3050},
+	{x = 11762, y = 50, z = 8880}
+}
+
+local function jump()
+	if not settings.wall or not qready then return end
+
+	for k, spot in pairs(spots) do
+		if GetDistance(spot, me) < 250 and GetDistance(spot, me) > 50 then
+			me:MoveTo(spot.x, spot.z)
+		end
+
+		if GetDistance(spot, me) < 20 then
+			CastSpell(_Q, spotend[k].x, spotend[k].z)
+			me:MoveTo(spotend[k].x, spotend[k].z)
+		end
+	end
+
+	for k, spot in pairs(spotend) do
+		if GetDistance(spot, me) < 250 and GetDistance(spot, me) > 50 then
+			me:MoveTo(spot.x, spot.z)
+		end
+
+		if GetDistance(spot, me) < 20 then
+			CastSpell(_Q, spots[k].x, spots[k].z)
+			me:MoveTo(spots[k].x, spots[k].z)
+		end
+	end
+end
+--[[=======================================================
    Cast Functions
 =========================================================]]
 
@@ -200,6 +267,10 @@ function myth:cast(spell, targ) -- dynamic cast func
 		if not settings.combo.r or not rready or not ValidTarget(targ, myth.skill.r.range) then return end
 		CastSpell(_R)
 	end
+end
+
+local function round(num) 
+	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
 end
 
 local function rendDamage(unit)
@@ -336,7 +407,10 @@ local function menu()
 		settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, false)
 	end
 
+	settings.draw:addParam("alwaysdraw", "Always draw wall jump points", SCRIPT_PARAM_ONOFF, true)
+
 	settings:addParam("drag", "Dragon/Baron steal", SCRIPT_PARAM_ONOFF, false)
+	settings:addParam("wall", "Wall Jump", SCRIPT_PARAM_ONKEYDOWN, false, 17)
 
 	settings:addTS(myth.ts)
 	settings:addParam("pred", "Prediction Type", SCRIPT_PARAM_LIST, 1, loaded)
@@ -384,9 +458,19 @@ function OnTick()
 	saveFriend() -- friend saver
 
 	dragSteal() -- dragon stealer
+
+	jump() -- wall jumper
 end
 
 function OnDraw()
+	if settings.draw.alwaysdraw or settings.wall then 
+		for k, v in pairs(spots) do
+			DrawCircle(v.x, v.y, v.z, 100, ARGB(125,0,150,255))
+		end
+		for k, v in pairs(spotend) do
+			DrawCircle(v.x, v.y, v.z, 100, ARGB(125,0,255,0))
+		end
+	end
 	if myth.skill.q.range ~= nil and settings.draw.q and qready then
 		DrawCircle(me.x, me.y, me.z, myth.skill.q.range, ARGB(125,0,150,255))
 	end
@@ -399,7 +483,6 @@ function OnDraw()
 	if myth.skill.r.range ~= nil and settings.draw.r and rready then
 		DrawCircle(me.x, me.y, me.z, myth.skill.r.range, ARGB(125,0,150,255))
 	end
-
 	if ValidTarget(target()) and eready then
 		local targ = target()
 		if GetStacks(targ) == 0 then return end
@@ -487,10 +570,6 @@ end
 --[[=======================================================
    Lag-Free Circles
 =========================================================]]
-
-local function round(num) 
-	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
-end
 
 local function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
     radius = radius or 300
