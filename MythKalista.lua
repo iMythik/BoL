@@ -296,7 +296,7 @@ local function rendDamage(unit)
 		dmg = 60 + (me.totalDamage * 0.6)
 	end	
 
-	return round(dmg + speardmg)
+	return me:CalcDamage(unit, (dmg + speardmg))
 end	
 
 local function saveFriend()
@@ -486,13 +486,13 @@ function OnDraw()
 	if ValidTarget(target()) and eready then
 		local targ = target()
 		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(rendDamage(targ), 1, " E Damage: "..rendDamage(targ), targ, true)
+		DrawLineHPBar(round(rendDamage(targ)), 1, " E Damage: "..round(rendDamage(targ)), targ, true)
 	end
 
 	if ValidTarget(drag) and eready and settings.drag then
 		local targ = drag
 		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(rendDamage(targ), 1, " E Damage: "..rendDamage(targ), targ, true)
+		DrawLineHPBar(round(rendDamage(targ)), 1, " E Damage: "..round(rendDamage(targ)), targ, true)
 	end
 end
 
