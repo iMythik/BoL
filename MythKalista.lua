@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.31
+ver = 1.4
 
 if myHero.charName ~= "Kalista" then return end
 
@@ -273,31 +273,18 @@ local function round(num)
 	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
 end
 
-local function rendDamage(unit)
+local spearscale = {10, 14, 19, 25, 32}
+local dmgscale = {20, 30, 40, 50, 60}
+local ratio = {0.20, 0.22, 0.25, 0.27, 0.30}
+
+local function rendcalc(unit)
 	if elvl == 0 then return 0 end
-	if elvl == 1 then
-		speardmg = 10 + (me.totalDamage * 0.20) * GetStacks(unit)
-		dmg = 20 + (me.totalDamage * 0.6)
-	end
-	if elvl == 2 then
-		speardmg = 14 + (me.totalDamage * 0.22) * GetStacks(unit)
-		dmg = 30 + (me.totalDamage * 0.6)
-	end		
-	if elvl == 3 then
-		speardmg = 19 + (me.totalDamage * 0.25) * GetStacks(unit)
-		dmg = 40 + (me.totalDamage * 0.6)
-	end	
-	if elvl == 4 then
-		speardmg = 25 + (me.totalDamage * 0.27) * GetStacks(unit)
-		dmg = 50 + (me.totalDamage * 0.6)
-	end	
-	if elvl == 5 then
-		speardmg = 32 + (me.totalDamage * 0.3) * GetStacks(unit)
-		dmg = 60 + (me.totalDamage * 0.6)
-	end	
+	local atkratio = me.totalDamage * ratio[elvl]
+	local speardmg = (spearscale[elvl] + atkratio) * GetStacks(unit)
+	local dmg = dmgscale[elvl] + (me.totalDamage * 0.60)
 
 	return me:CalcDamage(unit, (dmg + speardmg))
-end	
+end
 
 local function saveFriend()
 	if m8 == nil then return end -- u fokin wot m8???
@@ -313,7 +300,7 @@ local function bang(unit) -- combo (bang bang skudda)
 
 	if unit == nil then return end
 
-	if rendDamage(unit) > unit.health then
+	if rendcalc(unit) > unit.health then
 		myth:cast("e", unit)
 	end
 end
@@ -359,7 +346,20 @@ local function dragSteal()
     end
 
     if drag ~= nil and drag.visible and drag.valid and GetDistance(drag, me) < 950 and not drag.dead then
-    	if rendDamage(drag) >= drag.health then
+    	if rendcalc(drag) >= drag.health then
+    		CastSpell(_E)
+    	end
+    end
+
+    for i=1, objManager.maxObjects, 1 do
+        local object = objManager:getObject(i)
+        if object ~= nil and object.name == "SRU_Baron12.1.1" and object.visible and object.valid and not object.dead and GetDistance(object, myHero) < 950 then
+            baron = object
+        end
+    end
+
+    if baron ~= nil and baron.visible and baron.valid and GetDistance(baron, me) < 950 and not baron.dead then
+    	if rendcalc(baron) >= baron.health then
     		CastSpell(_E)
     	end
     end
@@ -390,7 +390,6 @@ local function menu()
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("key", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
 	settings.farm:addParam("q", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
-	settings.farm:addParam("e", "Farm with E", SCRIPT_PARAM_ONOFF, false)
 
 	settings:addSubMenu("Drawing", "draw")
 
@@ -486,13 +485,13 @@ function OnDraw()
 	if ValidTarget(target()) and eready then
 		local targ = target()
 		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(round(rendDamage(targ)), 1, " E Damage: "..round(rendDamage(targ)), targ, true)
+		DrawLineHPBar(round(rendcalc(targ)), 1, " E Damage: "..round(rendcalc(targ)), targ, true)
 	end
 
 	if ValidTarget(drag) and eready and settings.drag then
 		local targ = drag
 		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(round(rendDamage(targ)), 1, " E Damage: "..round(rendDamage(targ)), targ, true)
+		DrawLineHPBar(round(rendcalc(targ)), 1, " E Damage: "..round(rendcalc(targ)), targ, true)
 	end
 end
 
