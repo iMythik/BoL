@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.4
+ver = 1.5
 
 if myHero.charName ~= "Kalista" then return end
 
@@ -35,7 +35,7 @@ local myth = {
 	modules = {"VPrediction", "DivinePred", "HPrediction"}, --libs to load
 	url = "http://raw.github.com/iMythik/BoL/master/MythKalista.lua", --update url
 	ts = TargetSelector(TARGET_LOW_HP, 1500, DAMAGE_PHYSICAL, false, true), --target selector
-	creep = minionManager(MINION_ENEMY, 200, me, MINION_SORT_HEALTH_ASC), --creep selection
+	creep = minionManager(MINION_ENEMY, 800, me, MINION_SORT_HEALTH_ASC), --creep selection
 	skill = {
 		q = {range=1200,del=0.35,speed=2400,w=60},
 		w = {},
@@ -186,7 +186,9 @@ local spots = {
 	{x = 6550, y = 53, z = 11718},
 	{x = 11122, y = 52, z = 7506},
 	{x = 9672, y = 49, z = 2808},
-	{x = 11582, y = 64, z = 8722}
+	{x = 11582, y = 64, z = 8722},
+	{x = 4574, y = 95, z = 3158},
+	{x = 10022, y = 52, z = 11556}
 }
 
 local spotend = {
@@ -203,7 +205,9 @@ local spotend = {
 	{x = 6498, y = 56, z = 11986},
 	{x = 11092, y = 51, z = 7192},
 	{x = 9734, y = 64, z = 3050},
-	{x = 11762, y = 50, z = 8880}
+	{x = 11762, y = 50, z = 8880},
+	{x = 4862, y = 51, z = 3244},
+	{x = 10322, y = 91, z = 11656}
 }
 
 local function jump()
@@ -286,6 +290,14 @@ local function rendcalc(unit)
 	return me:CalcDamage(unit, (dmg + speardmg))
 end
 
+local function minionCalc(minion)
+	if elvl == 0 then return 0 end
+	local atkratio = me.totalDamage * ratio[elvl]
+	local dmg = dmgscale[elvl] + (me.totalDamage * 0.60)
+
+	return me:CalcDamage(minion, dmg)
+end
+
 local function saveFriend()
 	if m8 == nil then return end -- u fokin wot m8???
 
@@ -323,6 +335,18 @@ local function farm() -- minion farm
 	for i, m in pairs(myth.creep.objects) do
 		if settings.farm.q then
 			myth:cast("q", m)
+		end
+	end
+end
+
+local function lastHit()
+	myth.creep:update()
+	for i, m in pairs(myth.creep.objects) do
+		if settings.farm.e and minionCalc(m) >= m.health then
+			local amt = settings.farm.amount
+			if i >= amt then
+				myth:cast("e", m)
+			end
 		end
 	end
 end
@@ -390,6 +414,9 @@ local function menu()
 	settings:addSubMenu("Farm", "farm")
 	settings.farm:addParam("key", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
 	settings.farm:addParam("q", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.farm:addParam("e", "Farm with E", SCRIPT_PARAM_ONOFF, false)
+	settings.farm:addParam("amount", "Auto E if x minions killable", SCRIPT_PARAM_SLICE, 2, 1, 5, 0)
+
 
 	settings:addSubMenu("Drawing", "draw")
 
@@ -436,11 +463,11 @@ function OnLoad()
 end
 
 function OnTick()
+	myth.ts:update() --update target selection
+	myth.creep:update()
+
 	qready, wready, eready, rready = me:CanUseSpell(_Q) == READY, me:CanUseSpell(_W) == READY, me:CanUseSpell(_E) == READY, me:CanUseSpell(_R) == READY
 	elvl = me:GetSpellData(_E).level
-
-	myth.ts:update() --update target selection
-	myth.creep:update() --update creep selection
 
 	if settings.combo.key then -- combo
 		bang(target())
@@ -451,6 +478,8 @@ function OnTick()
 	if settings.farm.key then -- farm
 		farm()
 	end
+
+	lastHit()
 
 	steal() -- kill stealer
 
