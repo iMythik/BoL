@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 1.5
+ver = 1.6
 
 if myHero.charName ~= "Kalista" then return end
 
@@ -86,20 +86,18 @@ for k, v in pairs(myth.modules) do -- require modules
 end
 
 local function loadPred() -- load pred intergration
-	for k, v in pairs(loaded) do
-		if v == "DivinePred" then
-			local delaymil = myth.skill.q.del * 1000
-			dpred = DivinePred()
-			dpred.maxCalcTime = 110
-			myth.skill.q.pred = LineSS(myth.skill.q.speed, myth.skill.q.range, myth.skill.q.w, delaymil, 0)
-		end
-		if v == "VPrediction" then
-			vpred = VPrediction()
-		end
-		if v == "HPrediction" then
-			hpred = HPrediction()
-			HP_Q = HPSkillshot({type = "DelayLine", delay = myth.skill.q.del, range = myth.skill.q.range, speed = myth.skill.q.speed, collisionM = true, collisionH = true, width = myth.skill.q.w})
-		end
+	if table.HasValue(loaded, "DivinePred") then
+		local delaymil = myth.skill.q.del * 1000
+		dpred = DivinePred()
+		dpred.maxCalcTime = 110
+		myth.skill.q.pred = LineSS(myth.skill.q.speed, myth.skill.q.range, myth.skill.q.w, delaymil, 0)
+	end
+	if table.HasValue(loaded, "VPrediction") then
+		vpred = VPrediction()
+	end
+	if table.HasValue(loaded, "HPrediction") then
+		hpred = HPrediction()
+		HP_Q = HPSkillshot({type = "DelayLine", delay = myth.skill.q.del, range = myth.skill.q.range, speed = myth.skill.q.speed, collisionM = true, collisionH = true, width = myth.skill.q.w})
 	end
 end
 
@@ -235,6 +233,7 @@ local function jump()
 		end
 	end
 end
+
 --[[=======================================================
    Cast Functions
 =========================================================]]
@@ -273,15 +272,11 @@ function myth:cast(spell, targ) -- dynamic cast func
 	end
 end
 
-local function round(num) 
-	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
-end
-
 local spearscale = {10, 14, 19, 25, 32}
 local dmgscale = {20, 30, 40, 50, 60}
 local ratio = {0.20, 0.22, 0.25, 0.27, 0.30}
 
-local function rendcalc(unit)
+local function rendcalc(unit) -- e calculation for champs
 	if elvl == 0 then return 0 end
 	local atkratio = me.totalDamage * ratio[elvl]
 	local speardmg = (spearscale[elvl] + atkratio) * GetStacks(unit)
@@ -290,7 +285,9 @@ local function rendcalc(unit)
 	return me:CalcDamage(unit, (dmg + speardmg))
 end
 
-local function minionCalc(minion)
+local function minionCalc(minion) -- e calculation for minions
+	if minion == nil or minion.dead or not minion.visible or not minion.valid then return end
+
 	if elvl == 0 then return 0 end
 	local atkratio = me.totalDamage * ratio[elvl]
 	local dmg = dmgscale[elvl] + (me.totalDamage * 0.60)
@@ -339,9 +336,11 @@ local function farm() -- minion farm
 	end
 end
 
-local function lastHit()
+local function lastHit() -- last hit with E
 	myth.creep:update()
 	for i, m in pairs(myth.creep.objects) do
+		if m == nil or m.dead or not m.visible or not m.valid then return end
+
 		if settings.farm.e and minionCalc(m) >= m.health then
 			local amt = settings.farm.amount
 			if i >= amt then
@@ -359,34 +358,40 @@ local function steal() -- killsteal
 	end
 end
 
-local function dragSteal()
-	if not settings.drag then return end
+--[[=======================================================
+   Objective Stealer
+=========================================================]]
 
+local names = {"SRU_Dragon6.1.1", "SRU_Baron12.1.1", "SRU_Red4.1.1", "SRU_Red10.1.1", "SRU_Blue1.1.1", "SRU_Blue7.1.1"}
+local camps = {}
+
+local function findDrag()
+	if not settings.drag then return end
 	for i=1, objManager.maxObjects, 1 do
         local object = objManager:getObject(i)
-        if object ~= nil and object.name == "SRU_Dragon6.1.1" and object.visible and object.valid and not object.dead and GetDistance(object, myHero) < 950 then
-            drag = object
+        if object ~= nil then
+			for k, v in pairs(names) do
+		    	if object.name == v then
+		    		if table.HasValue(camps, objManager:getObject(i)) then -- if the mob is already in the table, don't add it again.
+		    		else 
+        				table.insert(camps, objManager:getObject(i))
+        			end
+        		end
+        	end
         end
     end
+    DelayAction(findDrag, 2) -- run every 2 seconds
+end
 
-    if drag ~= nil and drag.visible and drag.valid and GetDistance(drag, me) < 950 and not drag.dead then
-    	if rendcalc(drag) >= drag.health then
-    		CastSpell(_E)
-    	end
-    end
-
-    for i=1, objManager.maxObjects, 1 do
-        local object = objManager:getObject(i)
-        if object ~= nil and object.name == "SRU_Baron12.1.1" and object.visible and object.valid and not object.dead and GetDistance(object, myHero) < 950 then
-            baron = object
-        end
-    end
-
-    if baron ~= nil and baron.visible and baron.valid and GetDistance(baron, me) < 950 and not baron.dead then
-    	if rendcalc(baron) >= baron.health then
-    		CastSpell(_E)
-    	end
-    end
+local function dragSteal()
+	if not settings.drag then return end
+	for k, v in pairs(camps) do
+		if not v.dead and v.visible and GetDistance(v, me) < 700 then
+			if rendcalc(v) > v.health then
+				CastSpell(_E)
+			end
+		end
+	end
 end
 
 --[[=======================================================
@@ -459,6 +464,8 @@ function OnLoad()
 
 	menu() -- load menu
 
+	findDrag() -- get mob object iteriation numbers
+
 	myth:update()
 end
 
@@ -511,16 +518,18 @@ function OnDraw()
 	if myth.skill.r.range ~= nil and settings.draw.r and rready then
 		DrawCircle(me.x, me.y, me.z, myth.skill.r.range, ARGB(125,0,150,255))
 	end
+
+	for k, v in pairs(camps) do
+		if ValidTarget(v) and eready then
+			if GetStacks(v) == 0 then return end
+			DrawLineHPBar(math.floor(rendcalc(v)), 1, " E Damage: "..math.floor(rendcalc(v)), v, true)
+		end
+	end
+
 	if ValidTarget(target()) and eready then
 		local targ = target()
 		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(round(rendcalc(targ)), 1, " E Damage: "..round(rendcalc(targ)), targ, true)
-	end
-
-	if ValidTarget(drag) and eready and settings.drag then
-		local targ = drag
-		if GetStacks(targ) == 0 then return end
-		DrawLineHPBar(round(rendcalc(targ)), 1, " E Damage: "..round(rendcalc(targ)), targ, true)
+		DrawLineHPBar(math.floor(rendcalc(targ)), 1, " E Damage: "..math.floor(rendcalc(targ)), targ, true)
 	end
 end
 
@@ -599,9 +608,16 @@ end
    Lag-Free Circles
 =========================================================]]
 
+function table.HasValue( t, val )
+	for k, v in pairs( t ) do
+		if ( v == val ) then return true end
+	end
+	return false
+end
+
 local function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
     radius = radius or 300
-  	quality = math.max(8,round(180/math.deg((math.asin((chordlength/(2*radius)))))))
+  	quality = math.max(8,math.floor(180/math.deg((math.asin((chordlength/(2*radius)))))))
   	quality = 2 * math.pi / quality
 	radius = radius*.92
     local points = {}
