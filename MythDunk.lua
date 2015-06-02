@@ -1,348 +1,335 @@
-local version = "1.29"
+--[[
+	running on
+    __  ___        __   __     _  __      ______                                                     __      ___      ____ 
+   /  |/  /__  __ / /_ / /_   (_)/ /__   / ____/_____ ____ _ ____ ___   ___  _      __ ____   _____ / /__   |__ \    / __ \
+  / /|_/ // / / // __// __ \ / // //_/  / /_   / ___// __ `// __ `__ \ / _ \| | /| / // __ \ / ___// //_/   __/ /   / / / /
+ / /  / // /_/ // /_ / / / // // ,<    / __/  / /   / /_/ // / / / / //  __/| |/ |/ // /_/ // /   / ,<     / __/ _ / /_/ / 
+/_/  /_/ \__, / \__//_/ /_//_//_/|_|  /_/    /_/    \__,_//_/ /_/ /_/ \___/ |__/|__/ \____//_/   /_/|_|   /____/(_)\____/  
+        /____/                                                                                                             
+
+	We've come a long way :) 
+
+	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
+--]]
+
+ver = 2.1
 
 if myHero.charName ~= "Darius" then return end
 
-----------------------
---   Auto Updater   --
-----------------------
+--[[=======================================================
+   Localization
+=========================================================]]
 
-local mythdunk = {}
-local autoupdate = true
-local UPDATE_NAME = "MythDunk"
-local UPDATE_FILE_PATH = SCRIPT_PATH..UPDATE_NAME..".lua"
-local UPDATE_URL = "http://raw.github.com/iMythik/BoL/master/MythDunk.lua"
+local update        = true
+local me 			= _G.myHero -- LocalPlayer
+local CastSpell 	= _G.CastSpell -- Cast func
+local ValidTarget 	= _G.ValidTarget -- Valid target check
+local damage 		= _G.getDmg -- damage calc
 
-function printChat(msg) print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> "..msg.."</font>") end
+-- base table of all things that are holy
+local myth = {
+	name = "MythDunk", -- script name
+	ver = ver, -- script version
+	foes = GetEnemyHeroes(), -- enemy champs
+	url = "http://raw.github.com/iMythik/BoL/master/MythDunk.lua", --update url
+	ts = TargetSelector(TARGET_LOW_HP, 1500, DAMAGE_PHYSICAL, false, true), --target selector
+	creep = minionManager(MINION_ENEMY, 200, me, MINION_SORT_HEALTH_ASC), --creep selection
+	skill = {
+		q = {range=420},
+		w = {},
+		e = {range=520},
+		r = {range=450},
+	}
+}
 
-function update()
-    local netdata = GetWebResult("raw.github.com", "/iMythik/BoL/master/MythDunk.lua")
-    if netdata then
-        local netver = string.match(netdata, "local version = \"%d+.%d+\"")
-        netver = string.match(netver and netver or "", "%d+.%d+")
-        if netver then
-            netver = tonumber(netver)
-            if tonumber(version) < netver then
-                printChat("New version found, updating... don't press F9.")
-                DownloadFile(UPDATE_URL, UPDATE_FILE_PATH, function () printChat("Updated script ["..version.." to "..netver.."], press F9 twice to reload the script.") end)    
-            else
-                printChat("is running latest version!")
-            end
-        end
+--[[=======================================================
+   Updater
+=========================================================]]
+
+function myth:printChat(msg) -- chat message with prefix
+	print("<font color='#D40000'>["..myth.name.."]</font><font color='#FFFFFF'> "..msg.."</font>") 
+end
+
+function myth:update() -- updater func
+    local result = GetWebResult("raw.github.com", "/iMythik/BoL/master/"..myth.name..".lua")
+
+    if not result or result == nil then return end
+
+    local netv = string.match(result, "ver = \"%d+.%d+\"")
+    netv = string.match(netv and netv or "", "%d+.%d+")
+
+    if not netv or netv == nil then return end
+
+    netv = tonumber(netv)
+    if tonumber(myth.ver) < netv then
+        myth:printChat("New version found, updating... don't press F9.")
+        DownloadFile(myth.url, SCRIPT_PATH..myth.name..".lua", function() myth:printChat("Updated script ["..myth.ver.." to "..netv.."], press F9 twice to reload the script.") end)    
+    else
+        myth:printChat("is running latest version!")
     end
 end
 
-----------------------
---     Variables    --
-----------------------
+--[[=======================================================
+   Orbwalker Intergration
+=========================================================]]
 
-local spells = {}
-spells.q = {name = myHero:GetSpellData(_Q).name, ready = false, range = 420, width = 410}
-spells.w = {name = myHero:GetSpellData(_E).name, ready = false, range = 145, width = 145}
-spells.e = {name = myHero:GetSpellData(_E).name, ready = false, range = 540, width = 540}
-spells.r = {name = myHero:GetSpellData(_R).name, ready = false, range = 480, width = 480}
-   
-local stacktbl = {
-	[1] = "darius_Base_hemo_counter_01.troy",
-	[2] = "darius_Base_hemo_counter_02.troy",
-	[3] = "darius_Base_hemo_counter_03.troy",
-	[4] = "darius_Base_hemo_counter_04.troy",
-	[5] = "darius_Base_hemo_counter_05.troy",
-}
-
--- Spell cooldown check
-function mythdunk:readyCheck()
-	spells.q.ready, spells.w.ready, spells.e.ready, spells.r.ready = (myHero:CanUseSpell(_Q) == READY), (myHero:CanUseSpell(_W) == READY), (myHero:CanUseSpell(_E) == READY), (myHero:CanUseSpell(_R) == READY)
-end
-
--- Orbwalker check
-function orbwalkCheck()
+local function getOrbwalk() -- return running orbwalk
 	if _G.AutoCarry then
-		printChat("SA:C detected, support enabled.")
-		AutoCarry.Plugins:RegisterOnAttacked(ResetW)
-		SACLoaded = true
+		return "sac"
+	elseif _G.MMA_Loaded then
+		return "mma"
 	else
-		printChat("SA:C not running, loading SxOrbWalk.")
-		require("SxOrbWalk")
-		SxOrb:RegisterAfterAttackCallback(ResetW)
-		SxOrb:LoadToMenu(Menu)
-		SACLoaded = false
+		return "none"
 	end
 end
 
-----------------------
---  Cast functions  --
-----------------------
-
--- Cast Q
-function mythdunk:CastQ(unit)
-	if ValidTarget(unit, spells.q.range) and spells.q.ready then
-		if settings.combo.packets then
-			Packet("S_CAST", {spellId = _Q}):send()
-		else
-			CastSpell(_Q, unit.x, unit.z)
-		end
+local function loadOrbwalk() -- load orbwalk if one isnt loaded
+	if getOrbwalk() == "sac" then
+		myth:printChat("SA:C Intergration loaded.")
+		AutoCarry.Plugins:RegisterOnAttacked(resetW)
+	elseif getOrbwalk() == "mma" then
+		myth:printChat("MMA Intergration loaded.")
+	else 
+		myth:printChat("No orbwalker found, loading SxOrbWalk...")
+		require("SxOrbWalk")
+		SxOrb:RegisterAfterAttackCallback(resetW)
 	end
-	if settings.combo.qmax then
-		if ValidTarget(unit,425) and myHero:GetDistance(unit) > 290 then
-			if settings.combo.packets then
-				Packet("S_CAST", {spellId = _Q}):send()
-			else
-				CastSpell(_Q, unit.x, unit.z)
-			end
-		end
-	end
-end	
+end
 
--- Cast W
-function CastW()
-	if spells.w.ready then
-		if settings.combo.packets then
-			Packet("S_CAST", {spellId = _W}):send()
-		else
+local function target() -- target selection
+	myth.ts:update()
+	if getOrbwalk() == "sac" and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then return _G.AutoCarry.Crosshair:GetTarget() end		
+	if getOrbwalk() == "mma" and ValidTarget(_G.MMA_Target) then return _G.MMA_Target end
+	return myth.ts.target
+end
+
+--[[=======================================================
+   Stack Calculation (thanks sida <3)
+=========================================================]]
+
+local unitStacks = {}
+
+function OnUpdateBuff(Unit, Buff, Stacks)
+   if Buff.name == "dariushemo" then
+      unitStacks[Unit.networkID] = Stacks
+   end
+end
+ 
+function OnRemoveBuff(Unit, Buff)
+   if Buff.name == "dariushemo" then
+      unitStacks[Unit.networkID] = nil
+   end
+end
+
+function GetStacks(unit)
+   return unitStacks[unit.networkID] or 0
+end
+
+function getRdmg(unit)
+	local dmg = damage("R", unit, me)
+	local totaldmg = dmg + GetStacks(unit) * (dmg * 20 / 100)
+
+	return me:CalcDamage(unit, totaldmg)
+end
+
+--[[=======================================================
+   Cast Functions
+=========================================================]]
+
+function myth:cast(spell, targ) -- dynamic cast func
+	if spell == "q" then
+		if not settings.combo.q or not qready or not ValidTarget(targ, myth.skill.q.range) then return end
+		if settings.combo.maxq and me:GetDistance(targ) < 290 then return end
+		CastSpell(_Q)
+	end
+	if spell == "w" then
+		if not settings.combo.w or not wready then return end
+		if targ == nil then
 			CastSpell(_W)
 		end
-	end	
-end	
-
---W Reset
-function ResetW()
-	if SACLoaded then
-		local e = AutoCarry.Orbwalker.LastEnemyAttacked
-
-		if e and (settings.combo.comboKey and settings.combo.autow) or settings.harass.harassKey and settings.harass.w then
-			CastW()
-		end
-	else
-		if (settings.combo.comboKey and settings.combo.autow) or (settings.harass.harassKey and settings.harass.w) then
-			CastW()
-		end
 	end
-end
-
--- Cast E
-function mythdunk:CastE(unit)
-	if ValidTarget(unit, spells.e.range-8) and spells.e.ready then
+	if spell == "e" then
+		if not settings.combo.e or not eready or not ValidTarget(targ, myth.skill.e.range) then return end
 		if ValidTarget(unit, settings.combo.donte) then return end
-		if settings.combo.packets then
-			Packet("S_CAST", {spellId = _E, targetNetworkId = unit.networkID}):send()
-		else
-			CastSpell(_E, unit.x, unit.z)
-		end
-	end	
-end	
+		CastSpell(_E, targ.x, targ.z)
+	end
+	if spell == "r" then
+		if not settings.combo.r or not rready or not ValidTarget(targ, myth.skill.r.range) then return end
+		if settings.combo.kill and getRdmg(targ) < targ.health then return end
+		CastSpell(_R, targ)
+	end
+end
 
--- Cast ult
-function mythdunk:CastR(unit)
-	if ValidTarget(unit, spells.r.range) and getRdmg(unit) >= unit.health and spells.r.ready then
-		if settings.combo.packets then
-			Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
-		else
-			CastSpell(_R, unit)
-		end
-	end	
-end	
+local function bang(unit) -- combo (bang bang skudda)
+	myth:cast("r", unit)
+	myth:cast("e", unit)
+	myth:cast("q", unit)
+end
 
--- Cast ult without finisher check
-function mythdunk:subUlt(unit)
-	if ValidTarget(unit, spells.r.range) and spells.r.ready then
-		if settings.combo.packets then
-			Packet("S_CAST", {spellId = _R, targetNetworkId = unit.networkID}):send()
-		else
-			CastSpell(_R, unit)
+function resetW()
+	if getOrbwalk() == "sac" then
+		local e = AutoCarry.Orbwalker.LastEnemyAttacked
+		if e and (settings.combo.key and settings.combo.w) and e.type == me.type or settings.harass.key and settings.harass.w then
+			myth:cast("w")
 		end
-	end	
-end	
-
--- Full Combo
-function mythdunk:shoot(unit)
-	if SACLoaded then
-		AutoCarry.Orbwalker:Orbwalk(unit)
 	else
-		SxOrb:ForceTarget(unit)
-	end
-	if settings.ult.autoR then
-		mythdunk:CastR(unit)
-	end
-	if settings.combo.autoe then
-		mythdunk:CastE(unit)
-	end
-	if settings.combo.autoq then
-		mythdunk:CastQ(unit)
-	end
-end
-
-function mythdunk:Harass(unit)
-
-	if settings.harass.autoq and ValidTarget(unit,425) and myHero:GetDistance(unit) > 290 then
-		mythdunk:CastQ(unit)
-	end
-
-	if not settings.harass.harassKey then return end
-
-	if settings.harass.q and ValidTarget(unit, spells.q.range) then
-		mythdunk:CastQ(unit)
-	end
-end
-
--- Minion farm
-function mythdunk:Farm()
-	creep:update()
-		
-	for i, minion in pairs(creep.objects) do
-
-		if not settings.farm.farmkey then return end
-
-		if settings.farm.farmq and getDmg("Q", minion, myHero) >= minion.health then
-			mythdunk:CastQ(minion)
-		end
-
-		if settings.farm.farmw then
-			CastW()
+		if (settings.combo.key and settings.combo.w) or (settings.harass.key and settings.harass.w) then
+			myth:cast("w")
 		end
 	end
 end
 
-----------------------
---   Calculations   --
-----------------------
+local function harass(unit) -- harass dat nigga
+	if settings.harass.autoq and ValidTarget(unit, myth.skill.q.range) then
+		myth:cast("q", unit)
+	end
 
--- Target Selection
-function OnWndMsg(Msg, Key)
-	if Msg == WM_LBUTTONDOWN and settings.combo.focus then
-		local dist = 0
-		local Selecttarget = nil
-		for i, enemy in ipairs(GetEnemyHeroes()) do
-			if ValidTarget(enemy) then
-				if GetDistance(enemy, mousePos) <= dist or Selecttarget == nil then
-					dist = GetDistance(enemy, mousePos)
-					Selecttarget = enemy
-				end
-			end
-		end
-		if Selecttarget and dist < 300 then
-			if SelectedTarget and Selecttarget.charName == SelectedTarget.charName then
-				SelectedTarget = nil
-				if settings.combo.focus then 
-					printChat("Target unselected: "..Selecttarget.charName) 
-				end
-			else
-				SelectedTarget = Selecttarget
-				if settings.combo.focus then
-					printChat("New target selected: "..Selecttarget.charName) 
-				end
-			end
+	if settings.harass.key then
+		if settings.harass.q then
+			myth:cast("q", unit)
 		end
 	end
 end
 
--- Target Calculation
-function mythdunk:getTarg()
-	ts:update()
-	if _G.AutoCarry and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then _G.AutoCarry.Crosshair:SetSkillCrosshairRange(1200) return _G.AutoCarry.Crosshair:GetTarget() end		
-	if ValidTarget(SelectedTarget) then return SelectedTarget end
-	return ts.target
-end
-
--- Hemmorage stack calculation
-function OnCreateObj(object)
-	if GetDistance(myHero, object) >= 500 then return end
-	for k, v in pairs(stacktbl) do
-		if object.name == v then
-			for i, e in pairs(GetEnemyHeroes()) do
-				if mythdunk:getTarg() == e then
-	           	 	e.stack = k
-	           	end
-	        end
-	    end
-	end
-end
-
--- R damage calculation
-function getRdmg(unit)
-	for i, e in pairs(GetEnemyHeroes()) do
-		if e == unit then
-			if e.stack == nil then e.stack = 0 end
-			local dmg = getDmg("R", unit, myHero)
-	        local totaldmg = dmg + e.stack * dmg * 20 / 100
-
-	        --print(totaldmg)
-	        return totaldmg
+local function farm() -- minion farm
+	myth.creep:update()
+	
+	for i, m in pairs(myth.creep.objects) do
+		if settings.farm.q then
+			myth:cast("q", m)
+		end
+		if settings.farm.w and me:GetDistance(m) < 400 then
+			myth:cast("w")
 		end
 	end
 end
 
--- Invulnerable check
-function ultcalc(unit)
-	if not TargetHaveBuff("JudicatorIntervention", unit) or TargetHaveBuff("Undying Rage", unit) then
-		return true
+local function steal() -- killsteal
+	for k, v in pairs(myth.foes) do
+		if settings.ks.q and ValidTarget(v, myth.skill.q.range) and damage("Q", v, me) > v.health then
+			myth:cast("q", v)
+		end
+		if settings.ks.r and ValidTarget(v, myth.skill.r.range) and getRdmg(v) > v.health then
+			myth:cast("r", v)
+		end
 	end
 end
 
-----------------------
---      Hooks       --
-----------------------
 
--- Init hook
+--[[=======================================================
+   Menu
+=========================================================]]
+
+local function menu()
+	settings = scriptConfig("["..myth.name.."]", "mythik")
+
+	TargetSelector.name = "Target Select"
+
+	settings:addSubMenu("Full Combo", "combo")
+	settings.combo:addParam("key", "Combo Key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
+	settings.combo:addParam("q", "Auto Q", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("w", "Auto W", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("e", "Auto E", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("r", "Auto R", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("maxq", "Always Q at sweetspot", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("kill", "Only ult if killable", SCRIPT_PARAM_ONOFF, true)
+	settings.combo:addParam("donte", "Only pull if range >", SCRIPT_PARAM_SLICE, 200, 0, 300, 0)
+
+	settings:addSubMenu("Harass", "harass")
+	settings.harass:addParam("key", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
+	settings.harass:addParam("autoq", "Auto Q at max range", SCRIPT_PARAM_ONKEYTOGGLE, false, string.byte("T"))
+	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, false)
+
+	settings:addSubMenu("Kill Steal", "ks")
+	settings.ks:addParam("q", "Kill steal with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.ks:addParam("r", "Kill steal with R", SCRIPT_PARAM_ONOFF, false)
+
+	settings:addSubMenu("Farm", "farm")
+	settings.farm:addParam("key", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
+	settings.farm:addParam("q", "Farm with Q", SCRIPT_PARAM_ONOFF, false)
+	settings.farm:addParam("w", "Farm with W", SCRIPT_PARAM_ONOFF, false)
+
+	settings:addSubMenu("Drawing", "draw")
+
+	if myth.skill.q.range ~= nil then
+		settings.draw:addParam("q", "Draw Q", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.w.range ~= nil then
+		settings.draw:addParam("w", "Draw W", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.e.range ~= nil then
+		settings.draw:addParam("e", "Draw E", SCRIPT_PARAM_ONOFF, false)
+	end
+	if myth.skill.r.range ~= nil then
+		settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, false)
+	end
+
+	settings:addTS(myth.ts)
+end
+
+--[[=======================================================
+   Main Hooks
+=========================================================]]
+
 function OnLoad()
-	print("<font color='#009DFF'>[MythDunk]</font><font color='#FFFFFF'> has loaded!</font> <font color='#2BFF00'>[v"..version.."]</font>")
+	myth:printChat("has loaded!<font color='#2BFF00'> ["..myth.ver.."]")
 
-	if autoupdate then
-		update()
+	if getOrbwalk() == "none" then -- Incase the script is reloaded, and sa:c/mma is already loaded
+		DelayAction(loadOrbwalk, 7)
+	else
+		loadOrbwalk()
 	end
 
-	ts = TargetSelector(TARGET_LOW_HP, 600, DAMAGE_PHYSICAL, false, true)
-	creep = minionManager(MINION_ENEMY, 200, myHero, MINION_SORT_HEALTH_ASC)
+	menu() -- load menu
 
-	mythdunk:Menu()
-
-	DelayAction(orbwalkCheck,7)
+	myth:update()
 end
 
--- Tick hook
 function OnTick()
-	mythdunk:readyCheck()
+	qready, wready, eready, rready = me:CanUseSpell(_Q) == READY, me:CanUseSpell(_W) == READY, me:CanUseSpell(_E) == READY, me:CanUseSpell(_R) == READY
+	elvl = me:GetSpellData(_E).level
 
-	ts:update()
+	myth.ts:update() --update target selection
+	myth.creep:update() --update creep selection
 
-	local hp = myHero.health / myHero.maxHealth * 100
-
-	if settings.farm.farmkey then
-		mythdunk:Farm()
+	if settings.combo.key then -- combo
+		bang(target())
 	end
 
-	if settings.ks.r or settings.ks.q then
-		for k, v in pairs(GetEnemyHeroes()) do
-			if settings.ks.r then
-				if ValidTarget(v, spells.r.range) then
-					mythdunk:CastR(v)
-				end
-			elseif settings.ks.q then
-				if ValidTarget(v, spells.q.range) and getDmg("Q", v, myHero) >= v.health then
-					mythdunk:CastQ(v)
-				end
-			end
-		end
+	harass(target()) -- harass
+	
+	if settings.farm.key then -- farm
+		farm()
 	end
 
-	if not ValidTarget(mythdunk:getTarg()) then return end
-
-	local targ = mythdunk:getTarg()
-
-	if settings.harass.harassKey or settings.harass.autoq then
-		mythdunk:Harass(targ)
-	end
-
-	if settings.combo.comboKey then
-		mythdunk:shoot(targ)
-	end
-
-	if settings.ult.ultHP and hp <= settings.ult.ultpct and settings.ult.ultpct ~= 0 then
-		mythdunk:subUlt(targ)
-	end
-
+	steal() -- kill stealer
 end
 
--- thank you bilbao <3
+function OnDraw()
+	if myth.skill.q.range ~= nil and settings.draw.q and qready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.q.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.w.range ~= nil and settings.draw.w and wready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.w.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.e.range ~= nil and settings.draw.e and eready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.e.range, ARGB(125,0,150,255))
+	end
+	if myth.skill.r.range ~= nil and settings.draw.r and rready then
+		DrawCircle(me.x, me.y, me.z, myth.skill.r.range, ARGB(125,0,150,255))
+	end
+
+	if ValidTarget(target()) and rready then
+		local targ = target()
+		if GetStacks(targ) == 0 then return end
+		DrawLineHPBar(math.floor(getRdmg(targ)), 1, " R Damage: "..math.floor(getRdmg(targ)), targ, true)
+	end
+end
+
+--[[=======================================================
+   Draw Predicted E damage
+=========================================================]]
 
 function GetHPBarPos(enemy)
 	enemy.barData = {PercentageOffset = {x = -0.05, y = 0}}
@@ -368,20 +355,16 @@ function DrawLineHPBar(damage, line, text, unit, enemyteam)
 	if unit.dead or not unit.visible then return end
 	local p = WorldToScreen(D3DXVECTOR3(unit.x, unit.y, unit.z))
 	if not OnScreen(p.x, p.y) then return end
-
-	
 	local thedmg = 0
 	local linePosA = {x = 0, y = 0 }
 	local linePosB = {x = 0, y = 0 }
 	local TextPos =  {x = 0, y = 0 }
-	
 	
 	if damage >= unit.maxHealth then
 		thedmg = unit.maxHealth - 1
 	else
 		thedmg = damage
 	end
-	
 	
 	local StartPos, EndPos = GetHPBarPos(unit)
 	local Real_X = StartPos.x + 24
@@ -413,122 +396,37 @@ function DrawLineHPBar(damage, line, text, unit, enemyteam)
 
 	DrawLine(linePosA.x, linePosA.y, linePosB.x, linePosB.y , 2, ARGB(255, r, g, 0))
 	DrawText(tostring(text),15,TextPos.x, TextPos.y - 10, ARGB(255, r2, g2, b))
-	
 end
 
--- Drawing hook
-function OnDraw()
+--[[=======================================================
+   Lag-Free Circles
+=========================================================]]
 
-	if myHero.dead then return end
-
-	if settings.draw.q and spells.q.ready then
-		mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, spells.q.range, ARGB(255,0,255,0))
-		if settings.combo.qmax then
-			mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, 290, ARGB(255,0,255,0))
-		end
-	end
-
-	if settings.draw.w and spells.w.ready then
-		mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, spells.w.range, ARGB(255,255,255,0))
-	end
-
-	if settings.draw.e and spells.e.ready then
-		mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, spells.e.range, ARGB(255,255,110,0))
-	end
-
-	if settings.draw.r and spells.r.ready then
-		mythdunk:DrawCircle(myHero.x, myHero.y, myHero.z, spells.r.range, ARGB(255,255,0,0))
-	end
-
-	if settings.draw.target and ValidTarget(mythdunk:getTarg()) then
-		local targ = mythdunk:getTarg()
-		mythdunk:DrawCircle(targ.x, targ.y, targ.z, 100, ARGB(255,255,120,0))
-	end
-
-	if ValidTarget(mythdunk:getTarg()) and settings.draw.rdmg then
-		local targ = mythdunk:getTarg()
-		DrawLineHPBar(getRdmg(targ), 1, " R Damage: "..math.round(getRdmg(targ)), targ, true)
-	end
+local function round(num) 
+	if num >= 0 then return math.floor(num+.5) else return math.ceil(num-.5) end
 end
 
--- Menu creation
-function mythdunk:Menu()
-	settings = scriptConfig("MythDunk", "mythik")
-	TargetSelector.name = "MythDunk"
-	settings:addTS(ts)
-
-	settings:addSubMenu("Combo", "combo")
-	settings.combo:addParam("comboKey", "Combo Key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
-	settings.combo:addParam("autoq", "Auto Q", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("autow", "Auto W", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("autoe", "Auto E", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("focus", "Focus selected target", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("qmax", "Only Q in max range", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("packets", "Use packet casting", SCRIPT_PARAM_ONOFF, true)
-	settings.combo:addParam("donte", "Only pull if range >", SCRIPT_PARAM_SLICE, 200, 0, 300, 0)
-
-	settings:addSubMenu("Harass", "harass")
-	settings.harass:addParam("harassKey", "Harass Key", SCRIPT_PARAM_ONKEYDOWN, false, 67)
-	settings.harass:addParam("autoq", "Auto Q at max range", SCRIPT_PARAM_ONKEYTOGGLE, true, string.byte("T"))
-	settings.harass:addParam("q", "Harass with Q", SCRIPT_PARAM_ONOFF, true)
-	settings.harass:addParam("w", "Harass with W", SCRIPT_PARAM_ONOFF, true)
-
-	settings:addSubMenu("Farm", "farm")
-	settings.farm:addParam("farmkey", "Farm Key", SCRIPT_PARAM_ONKEYDOWN, false, 86)
-	settings.farm:addParam("farmq", "Farm with Q", SCRIPT_PARAM_ONOFF, true)
-	settings.farm:addParam("farmw", "Farm with W", SCRIPT_PARAM_ONOFF, true)
-
-	settings:addSubMenu("Ultimate", "ult")
-	settings.ult:addParam("autoR", "Use ult in combo", SCRIPT_PARAM_ONOFF, true)
-	settings.ult:addParam("ultHP", "Ult on Low HP (You)", SCRIPT_PARAM_ONOFF, true)
-	settings.ult:addParam("ultpct", "Use ult below health %", SCRIPT_PARAM_SLICE, 25, 0, 35, 0)
-
-	settings:addSubMenu("Kill Steal", "ks")
-	settings.ks:addParam("r", "Use R", SCRIPT_PARAM_ONOFF, true)
-	settings.ks:addParam("q", "Use Q", SCRIPT_PARAM_ONOFF, true)
-
-	settings:addSubMenu("Drawing", "draw")
-	settings.draw:addParam("q", "Draw Q", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("w", "Draw W", SCRIPT_PARAM_ONOFF, false)
-	settings.draw:addParam("e", "Draw E", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("r", "Draw R", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("rdmg", "Draw R Damage", SCRIPT_PARAM_ONOFF, true)
-	settings.draw:addParam("target", "Draw Target", SCRIPT_PARAM_ONOFF, true)
+local function DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
+    radius = radius or 300
+  	quality = math.max(8,round(180/math.deg((math.asin((chordlength/(2*radius)))))))
+  	quality = 2 * math.pi / quality
+	radius = radius*.92
+    local points = {}
+    for theta = 0, 2 * math.pi + quality, quality do
+        local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
+        points[#points + 1] = D3DXVECTOR2(c.x, c.y)
+    end
+    DrawLines2(points, width or 1, color or 4294967295)
 end
 
-
---Lag Free Circles
-function mythdunk:DrawCircle(x, y, z, radius, color)
-	local vPos1 = Vector(x, y, z)
-	local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
-	local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
-	local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
-		
-	if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
-		self:DrawCircleNextLvl(x, y, z, radius, 1, color, 300) 
-	end
-end
-
-function mythdunk:DrawCircleNextLvl(x, y, z, radius, width, color, chordlength)
-	radius = radius or 300
-	quality = math.max(8, self:Round(180 / math.deg((math.asin((chordlength / (2 * radius)))))))
-	quality = 2 * math.pi / quality
-	radius = radius * .92
-	local points = {}
-		
-	for theta = 0, 2 * math.pi + quality, quality do
-		local c = WorldToScreen(D3DXVECTOR3(x + radius * math.cos(theta), y, z - radius * math.sin(theta)))
-		points[#points + 1] = D3DXVECTOR2(c.x, c.y)
-	end
-	DrawLines2(points, width or 1, color or 4294967295)	
-end
-
-function mythdunk:Round(number)
-	if number >= 0 then 
-		return math.floor(number+.5) 
-	else 
-		return math.ceil(number-.5) 
-	end
+function DrawCircle(x, y, z, radius, color)
+    local vPos1 = Vector(x, y, z)
+    local vPos2 = Vector(cameraPos.x, cameraPos.y, cameraPos.z)
+    local tPos = vPos1 - (vPos1 - vPos2):normalized() * radius
+    local sPos = WorldToScreen(D3DXVECTOR3(tPos.x, tPos.y, tPos.z))
+    if OnScreen({ x = sPos.x, y = sPos.y }, { x = sPos.x, y = sPos.y }) then
+        DrawCircleNextLvl(x, y, z, radius, 1, color, 200) 
+    end
 end
 
 assert(load(Base64Decode("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"), nil, "bt", _ENV))() ScriptStatus("TGJIGGIGKNO") 
