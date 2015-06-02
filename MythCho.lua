@@ -12,7 +12,7 @@
 	Mythik Framework is usable by anyone, if you wish to use it, please do not change the credits or remove the header.
 --]]
 
-ver = 2.2
+ver = 2.3
 
 if myHero.charName ~= "Chogath" then return end
 
@@ -108,7 +108,10 @@ end
 =========================================================]]
 
 local function getOrbwalk() -- return running orbwalk
-	if _G.AutoCarry then
+	if _G.Reborn_Loaded and not _G.Reborn_Initialised then
+		DelayAction(getOrbwalk, 1)
+		return "waiting"
+	elseif _G.Reborn_Initialised then
 		return "sac"
 	elseif _G.MMA_Loaded then
 		return "mma"
@@ -118,7 +121,9 @@ local function getOrbwalk() -- return running orbwalk
 end
 
 local function loadOrbwalk() -- load orbwalk if one isnt loaded
-	if getOrbwalk() == "sac" then
+	if getOrbwalk() == "waiting" then
+		DelayAction(loadOrbwalk, 1)
+	elseif getOrbwalk() == "sac" then
 		myth:printChat("SA:C Intergration loaded.")
 	elseif getOrbwalk() == "mma" then
 		myth:printChat("MMA Intergration loaded.")
@@ -297,11 +302,7 @@ end
 function OnLoad()
 	myth:printChat("has loaded!<font color='#2BFF00'> ["..myth.ver.."]")
 
-	if getOrbwalk() == "none" then -- Incase the script is reloaded, and sa:c/mma is already loaded
-		DelayAction(loadOrbwalk, 7)
-	else
-		loadOrbwalk()
-	end
+	loadOrbwalk()
 
 	DelayAction(loadPred, 3) -- load prediction
 
